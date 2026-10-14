@@ -51,7 +51,7 @@ Flags: `--archetype --rarity --style (stylized|realistic|lowpoly) --sex --textur
 | generate | `POST /v3/generation/text-to-model` | `v3.1`, PBR, A-pose prompt, weapons stowed, seeds derived from the character seed |
 | rigcheck | `POST /v3/animations/rig-check` | Stops if the model is not a riggable biped, before any rig credits are spent |
 | rig | `POST /v3/animations/rig` | `v1.0-20240301` biped, `spec: mixamo` (maps to Unity/Unreal humanoid) |
-| animate | `POST /v3/animations/retarget` | Core set (idle, walk, run, hurt, defeat, victory) plus 2 archetype moves, baked in-place into one GLB |
+| animate | `POST /v3/animations/retarget` | Core set (idle, walk, run) plus 2 archetype moves (Tripo caps a request at 5), baked in-place into one GLB |
 | fbx | `POST /v3/animations/retarget` | Optional; same clips as FBX |
 
 Output goes to `output/<name>-<seed>/`: `base.glb`, `base-rendered_image.*`, `rigged.glb`, `animated.glb`, an optional `animated.fbx`, `character.json` (game stats) and `state.json` (task ids, used for resume).

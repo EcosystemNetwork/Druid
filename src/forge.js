@@ -236,16 +236,12 @@ const RELICS = [
   "Broken Ransom Chain", "Lucky Grey-Goose Fletching",
 ];
 
-// Every character gets these; archetypes add their signature moves on top.
+// Every character gets these; archetypes add their 2 signature moves on top.
 // Rig v1.0-20240301 biped preset names (see /en/docs/animations-retarget).
-export const CORE_ANIMATIONS = [
-  "preset:biped:idle",
-  "preset:biped:walk",
-  "preset:biped:run",
-  "preset:biped:hurt",
-  "preset:biped:defeat_02",
-  "preset:biped:victory_celebration",
-];
+// Retarget accepts at most 5 animations per request (billed per clip), so hurt,
+// defeat and victory are left to the game's procedural stand-ins (web/game/models.js).
+export const CORE_ANIMATIONS = ["preset:biped:idle", "preset:biped:walk", "preset:biped:run"];
+export const MAX_RETARGET_ANIMATIONS = 5;
 
 // ---------- forge ----------
 
@@ -370,7 +366,8 @@ export const rigPayload = (generateTaskId) => ({ input: generateTaskId, model: "
 
 export const retargetPayload = (character, rigTaskId, format, opts) => ({
   input: rigTaskId,
-  animations: character.animations,
+  // Characters saved before the cap carried 8 clips; trim so their resumes don't 400.
+  animations: character.animations.slice(0, MAX_RETARGET_ANIMATIONS),
   out_format: format,
   bake_animation: true,
   export_with_geometry: true,
