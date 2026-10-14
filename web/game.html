@@ -133,6 +133,23 @@
   .summary b { display: block; font: 800 22px Cinzel, serif; }
   .summary span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
   .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .forge-panel { width: min(520px, 100%); }
+  .forge-panel h2 { font-size: 22px; margin-bottom: 4px; }
+  .check { display: flex; gap: 8px; align-items: center; text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--ink); margin-top: 8px; }
+  .check input { width: auto; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fsteps { list-style: none; padding: 0; margin: 12px 0 0; }
+  .fsteps li { display: grid; grid-template-columns: 96px 1fr 64px; gap: 10px; align-items: center; font-size: 13px; padding: 4px 0; color: var(--muted); }
+  .fsteps .bar { height: 6px; background: #141a10; border-radius: 3px; overflow: hidden; }
+  .fsteps .bar i { display: block; height: 100%; width: 0; background: var(--green); transition: width .3s; }
+  .fsteps li.success, .fsteps li.skipped { color: var(--ink); }
+  .fsteps li.success .bar i, .fsteps li.skipped .bar i { width: 100%; }
+  .fsteps li.running { color: var(--gold); }
+  .fsteps .st { text-align: right; font-variant-numeric: tabular-nums; }
+  .msg { font-size: 13px; margin-top: 10px; min-height: 1.4em; color: var(--muted); }
+  .msg.err { color: var(--red); }
+  .msg.ok { color: var(--green-hi); }
+  #forge3d { width: 100%; margin-top: 8px; }
   #loading { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: rgba(8,10,6,.85); font-family: Cinzel, serif; font-size: 20px; }
   @media (max-width: 640px) { .hud-tr { top: auto; bottom: 96px; right: 8px; } .hud-tl { left: 8px; top: 8px; } .slot { width: 54px; height: 54px; } }
 </style>
@@ -185,7 +202,7 @@
       <div class="panel">
         <h2>The Merry Band</h2>
         <div id="band" class="band"><span class="muted">Looking for forged heroes…</span></div>
-        <p class="note">Heroes forged on the <a href="/" style="color:var(--green-hi)">Sherwood Forge</a> play with their rigged 3D model.</p>
+        <p class="note" id="band-note">Roll a stranger, then forge them in 3D with your own Tripo API key. Forged heroes are saved in this browser.</p>
       </div>
       <div class="panel stack">
         <h2>Roll a stranger</h2>
@@ -205,6 +222,7 @@
       <div class="panel">
         <div id="preview"><p class="muted">Pick a hero from the band or roll a stranger.</p></div>
         <button id="begin" class="primary begin" disabled>Begin the run</button>
+        <button id="forge3d" hidden>Forge this hero in 3D</button>
         <p class="note" id="best"></p>
       </div>
     </div>
@@ -247,6 +265,26 @@
       <button id="again" class="primary">Run again with this hero</button>
       <button id="tomenu">Choose another hero</button>
     </div>
+  </div>
+</div>
+
+<div id="screen-forge" class="screen" hidden>
+  <div class="panel forge-panel stack">
+    <h2>Forge in 3D</h2>
+    <p class="muted" id="forge-who" style="margin:0"></p>
+    <div>
+      <label for="tkey">Tripo API key</label>
+      <div class="row"><input id="tkey" type="password" placeholder="tsk_…" autocomplete="off" spellcheck="false" /><button id="tbal" style="flex:none">Check</button></div>
+      <label class="check"><input type="checkbox" id="tremember" checked /> Remember the key on this device</label>
+      <p class="note">Get a key at <a href="https://platform.tripo3d.ai" target="_blank" rel="noopener" style="color:var(--green-hi)">platform.tripo3d.ai</a>. It stays in this browser and is passed through this site to Tripo with each request. Nothing is stored on the server.</p>
+    </div>
+    <div class="grid2">
+      <div><label for="ftex">Texture</label><select id="ftex"><option value="standard">Standard</option><option value="detailed" selected>Detailed</option></select></div>
+      <div><label for="fgeo">Geometry</label><select id="fgeo"><option value="standard" selected>Standard</option><option value="detailed">Ultra</option></select></div>
+    </div>
+    <ul id="fsteps" class="fsteps"></ul>
+    <div id="fmsg" class="msg">Generating, rigging and animating spends Tripo credits and takes a few minutes. Keep this tab open.</div>
+    <div class="row"><button id="fclose">Back</button><button id="fstart" class="primary">Forge (spends credits)</button></div>
   </div>
 </div>
 

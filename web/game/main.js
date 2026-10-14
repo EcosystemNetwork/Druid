@@ -8,12 +8,14 @@ import { FX, updateProjectiles, clearProjectiles, updatePickups, clearPickups, s
 import { spawnEnemy, updateEnemies, clearEnemies, buildWaves } from "./enemies.js";
 import { createPlayer, updatePlayer, tryDodge, tryAbility, addFollower, placeFollowers, clearSnares, baseDamage, critChance, abilityCd, dodgeCd } from "./player.js";
 import { makeHero, loadGLBRig } from "./models.js";
+import { listHeroes, deleteHero } from "./heroes.js";
+import { forgeInBrowser, getBalance, savedProgress, STEP_LABELS } from "./tripo-browser.js";
 import { KITS, UPGRADES, RARITY_WEIGHT, RARITY_PRICE, RELIC_EFFECTS, FINAL_FLOOR, SHOP_AFTER } from "./content.js";
 import { initAudio, sfx, startMusic, stopMusic, toggleMute, isMuted } from "./audio.js";
 import { floatText, updateFloats, clearFloats, updateEnemyBars, banner, setPrompt, bossBar, flashHurt, updateHud, cardHTML, esc } from "./hud.js";
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ["screen-select", "screen-reward", "screen-shop", "screen-pause", "screen-summary"];
+const SCREENS = ["screen-select", "screen-reward", "screen-shop", "screen-pause", "screen-summary", "screen-forge"];
 const show = (id) => SCREENS.forEach((s) => ($(s).hidden = s !== id));
 
 // ---------- renderer & scene ----------
@@ -126,8 +128,21 @@ function select(sel, btn) {
   selected = sel;
   document.querySelectorAll(".band button").forEach((b) => b.classList.toggle("on", b === btn));
   const note = sel.glb ? "Plays with the forged, rigged 3D model." : "Plays with a hand-built low-poly look. Forge this hero for the full 3D model.";
-  $("preview").innerHTML = cardHTML(sel.character, kitHTML(sel.character) + `<p class="note">${note}</p>`);
+  const remove = sel.local ? ' <a href="#" id="unband" style="color:var(--muted)">Remove from band</a>' : "";
+  $("preview").innerHTML = cardHTML(sel.character, kitHTML(sel.character) + `<p class="note">${note}${remove}</p>`);
   $("begin").disabled = false;
+  $("forge3d").hidden = !!sel.glb;
+  $("forge3d").textContent = savedProgress(sel.character.seed) ? "Resume forging this hero in 3D" : "Forge this hero in 3D";
+  if (sel.local)
+    $("unband").onclick = async (e) => {
+      e.preventDefault();
+      if (!confirm(`Remove ${sel.character.name} and their 3D model from this browser?`)) return;
+      await deleteHero(sel.character.seed);
+      selected = null;
+      $("preview").innerHTML = '<p class="muted">Pick a hero from the band or roll a stranger.</p>';
+      $("begin").disabled = true;
+      loadBand();
+    };
 }
 
 const fileUrl = (dir, f) => (/^https?:/.test(f) ? f : `/output/${dir}/${f}`);
@@ -149,28 +164,159 @@ async function initSelect() {
     select({ character: c, glb: null }, null);
   };
   $("begin").onclick = () => selected && startRun(selected);
+  $("forge3d").onclick = () => selected && openForge(selected.character);
   showBest();
+  await loadBand();
+}
+
+const heroUrls = new Map(); // seed -> { url, thumb }, created once so a running hero never loses its model
+let serverBand = null; // null = no Forge server (static hosting)
+
+async function loadBand() {
   const band = $("band");
-  let list = [];
-  try {
-    list = await fetch("/api/characters").then((r) => (r.ok ? r.json() : []));
-  } catch {}
-  band.innerHTML = list.length ? "" : '<span class="muted">No forged heroes yet. Roll a stranger, or forge one first.</span>';
+  if (serverBand === null) {
+    try {
+      const r = await fetch("/api/characters");
+      if (r.ok && r.headers.get("content-type")?.includes("json")) serverBand = await r.json();
+    } catch {}
+    serverBand ??= false;
+  }
+  const local = await listHeroes();
+  band.innerHTML = "";
   const want = new URLSearchParams(location.search).get("dir");
-  for (const item of list) {
+  const add = (c, thumb, sub, sel, preselect) => {
+    const b = document.createElement("button");
+    b.innerHTML = `${thumb ? `<img src="${thumb}" alt="">` : '<img alt="">'}
+      <span><span style="color:var(--${c.rarity})">${esc(c.name)}</span><small>${esc(c.archetypeLabel)} · ${sub}</small></span>`;
+    b.onclick = () => (sfx.ui(), select(sel, b));
+    band.append(b);
+    if (preselect) select(sel, b);
+  };
+  for (const h of local) {
+    if (!heroUrls.has(h.seed)) heroUrls.set(h.seed, { url: URL.createObjectURL(h.glb), thumb: h.thumb ? URL.createObjectURL(h.thumb) : null });
+    const { url, thumb } = heroUrls.get(h.seed);
+    const dir = `local:${h.seed}`;
+    add(h.character, thumb, "3D model · this browser", { character: h.character, local: true, glb: { url, dir, yaw: savedYaw(dir, -Math.PI / 2) } }, false);
+  }
+  for (const item of serverBand || []) {
     const c = item.character;
     const model = item.files.animate?.model ?? item.files.rig?.model;
     const thumb = item.files.generate?.rendered_image;
-    const b = document.createElement("button");
-    b.innerHTML = `${thumb && !/^https?:/.test(thumb) ? `<img src="${fileUrl(item.dir, thumb)}" alt="">` : '<img alt="">'}
-      <span><span style="color:var(--${c.rarity})">${esc(c.name)}</span><small>${esc(c.archetypeLabel)} · ${model ? "3D model" : "no model yet"}${item.dryRun ? " · dry run" : ""}</small></span>`;
-    const sel = {
+    const sel = { character: c, glb: model ? { url: fileUrl(item.dir, model), dir: item.dir, yaw: savedYaw(item.dir, item.dryRun ? Math.PI : -Math.PI / 2) } : null };
+    add(c, thumb && !/^https?:/.test(thumb) ? fileUrl(item.dir, thumb) : null, `${model ? "3D model" : "no model yet"}${item.dryRun ? " · dry run" : ""}`, sel, want && item.dir === want);
+  }
+  if (serverBand)
+    $("band-note").innerHTML = 'Roll a stranger and forge them in 3D here with your Tripo key, or use the <a href="/" style="color:var(--green-hi)">Sherwood Forge</a> page.';
+  if (!band.children.length)
+    band.innerHTML = '<span class="muted">No forged heroes yet. Roll a stranger, then forge them in 3D with your Tripo key, or just play them as they are.</span>';
+}
+
+// ---------- in-browser forge ----------
+
+let forging = null; // { character } while a forge is running
+let forgeChar = null;
+
+function loadKey() {
+  try {
+    return localStorage.getItem("sherwood.tripoKey") ?? "";
+  } catch {
+    return "";
+  }
+}
+function storeKey(key) {
+  try {
+    if ($("tremember").checked) localStorage.setItem("sherwood.tripoKey", key);
+    else localStorage.removeItem("sherwood.tripoKey");
+  } catch {}
+}
+
+function forgeMsg(text, kind = "") {
+  $("fmsg").textContent = text;
+  $("fmsg").className = `msg ${kind}`;
+}
+
+function renderSteps(progress = {}) {
+  $("fsteps").innerHTML = Object.entries(STEP_LABELS)
+    .map(([k, label]) => {
+      const p = progress[k] ?? {};
+      const st = p.status === "running" ? `${p.progress ?? 0}%` : p.status === "success" || p.status === "skipped" ? "done" : "";
+      return `<li data-step="${k}" class="${p.status ?? ""}"><span>${label}</span><div class="bar"><i style="width:${p.status === "running" ? p.progress ?? 0 : ""}%"></i></div><span class="st">${st}</span></li>`;
+    })
+    .join("");
+}
+
+function openForge(c) {
+  forgeChar = c;
+  show("screen-forge");
+  $("tkey").value ||= loadKey();
+  $("forge-who").textContent = `${c.name} · ${c.rarityLabel} ${c.archetypeLabel} · seed ${c.seed}`;
+  if (forging) {
+    $("fstart").disabled = true;
+    return forgeMsg(forging.character.seed === c.seed ? "Forging this hero now…" : `Busy forging ${forging.character.name}. Wait for it to finish.`);
+  }
+  const resume = savedProgress(c.seed);
+  const done = Object.keys(resume?.steps ?? {});
+  renderSteps(Object.fromEntries(done.map((k) => [k, { status: "skipped" }])));
+  $("fstart").disabled = false;
+  $("fstart").textContent = done.length ? "Resume forging" : "Forge (spends credits)";
+  $("fstart").onclick = startForge;
+  forgeMsg(done.length ? `${done.length} step(s) already paid for; resuming won't charge for them again.` : "Generating, rigging and animating spends Tripo credits and takes a few minutes. Keep this tab open.");
+}
+
+$("fclose").onclick = () => {
+  show("screen-select");
+  if (selected) select(selected, document.querySelector(".band button.on"));
+};
+
+$("tbal").onclick = async () => {
+  const key = $("tkey").value.trim();
+  if (!key) return forgeMsg("Paste your Tripo API key first.", "err");
+  forgeMsg("Checking…");
+  try {
+    const b = await getBalance(key);
+    storeKey(key);
+    forgeMsg(`Key works. Balance: ${b.balance} credits${b.frozen ? ` (${b.frozen} reserved)` : ""}.`, "ok");
+  } catch (err) {
+    forgeMsg(err.message + (err.suggestion ? `. ${err.suggestion}` : ""), "err");
+  }
+};
+
+async function startForge() {
+  const key = $("tkey").value.trim();
+  if (!/^tsk_/.test(key)) return forgeMsg("Tripo API keys start with tsk_. Copy the secret key from the Tripo console.", "err");
+  storeKey(key);
+  const c = forgeChar;
+  forging = { character: c };
+  const progress = {};
+  $("fstart").disabled = true;
+  forgeMsg("Forging… keep this tab open.");
+  renderSteps(progress);
+  try {
+    const hero = await forgeInBrowser({
+      key,
       character: c,
-      glb: model ? { url: fileUrl(item.dir, model), dir: item.dir, yaw: savedYaw(item.dir, item.dryRun ? Math.PI : -Math.PI / 2) } : null,
+      options: { textureQuality: $("ftex").value, geometryQuality: $("fgeo").value },
+      onEvent: (e) => {
+        if (e.step === "log") return forgeMsg(e.message);
+        if (STEP_LABELS[e.step]) progress[e.step] = e;
+        if (forgeChar === c && !$("screen-forge").hidden) renderSteps(progress);
+      },
+    });
+    forging = null;
+    await loadBand();
+    const btn = [...document.querySelectorAll(".band button")].find((b) => b.textContent.includes(c.name));
+    forgeMsg(`Done · ${hero.credits} credits. ${c.name} joined the band.`, "ok");
+    $("fstart").disabled = false;
+    $("fstart").textContent = `Play as ${c.name}`;
+    $("fstart").onclick = () => {
+      btn?.click();
+      if (selected) startRun(selected);
     };
-    b.onclick = () => (sfx.ui(), select(sel, b));
-    band.append(b);
-    if (want && item.dir === want) select(sel, b);
+  } catch (err) {
+    forging = null;
+    forgeMsg(err.message + (err.suggestion ? `. ${err.suggestion}` : "") + (savedProgress(c.seed) ? " Finished steps are saved: press Resume." : ""), "err");
+    $("fstart").disabled = false;
+    $("fstart").textContent = savedProgress(c.seed) ? "Resume forging" : "Try again";
   }
 }
 

@@ -4,12 +4,14 @@
 import { createServer } from "node:http";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { createReadStream } from "node:fs";
+import { Readable } from "node:stream";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { ARCHETYPES, RARITIES, STYLES, forgeCharacter } from "./forge.js";
 import { DEFAULT_OPTIONS, runPipeline } from "./pipeline.js";
 import { TripoClient } from "./tripo.js";
 import { loadEnv } from "./env.js";
+import { apiTarget, fileTarget, validAuth } from "./tripo-proxy.js";
 
 loadEnv();
 
@@ -112,9 +114,36 @@ function startJob({ character, options, dryRun }) {
   return job;
 }
 
+// Mirrors netlify/edge-functions/tripo.js so the in-browser forge works locally too.
+async function proxyTripo(req, res, url) {
+  let upstream;
+  if (url.pathname === "/api/tripo-file") {
+    const target = fileTarget(url.searchParams.get("url"));
+    if (!target) return send(res, 400, { code: -1, message: "Only Tripo file URLs can be fetched" });
+    upstream = await fetch(target);
+  } else {
+    const target = apiTarget(req.method, url.pathname);
+    if (!target) return send(res, 404, { code: -1, message: "Unknown Tripo route" });
+    const auth = req.headers.authorization;
+    if (!validAuth(auth)) return send(res, 401, { code: 2, message: "Missing or malformed Tripo API key (it starts with tsk_)" });
+    let body;
+    if (req.method === "POST") for await (const chunk of req) body = (body ?? "") + chunk;
+    upstream = await fetch(target, { method: req.method, headers: { authorization: auth, "content-type": "application/json" }, body });
+  }
+  const headers = { "Content-Type": upstream.headers.get("content-type") ?? "application/octet-stream", "Cache-Control": "no-store" };
+  const reset = upstream.headers.get("x-ratelimit-reset");
+  if (reset) headers["x-ratelimit-reset"] = reset;
+  res.writeHead(upstream.status, headers);
+  if (upstream.body) Readable.fromWeb(upstream.body).pipe(res);
+  else res.end();
+}
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   try {
+    if (url.pathname.startsWith("/api/tripo/") || url.pathname === "/api/tripo-file") {
+      return await proxyTripo(req, res, url);
+    }
     if (req.method === "GET" && url.pathname === "/api/meta") {
       return send(res, 200, {
         dryRun: ENV_DRY_RUN,

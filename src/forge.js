@@ -328,3 +328,60 @@ function buildPrompt(c, rar) {
 export function slugify(c) {
   return `${c.name}-${c.seed}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
+
+// ---------- Tripo pipeline payloads (shared by the Node pipeline and the browser forge) ----------
+
+export const PIPELINE_DEFAULTS = {
+  model: "v3.1-20260211",
+  textureQuality: "detailed", // fast | standard | detailed | extreme
+  geometryQuality: "standard", // standard | detailed (Ultra)
+  faceLimit: 40000, // game-ready humanoid
+  fbx: false,
+  inPlace: true, // root motion off; game controllers move the character
+};
+
+export function numericSeed(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  return (h >>> 0) % 2147483647;
+}
+
+export function generatePayload(character, opts) {
+  return {
+    prompt: character.prompt,
+    negative_prompt: character.negativePrompt,
+    model: opts.model,
+    texture: true,
+    pbr: true,
+    texture_quality: opts.textureQuality,
+    geometry_quality: opts.geometryQuality,
+    face_limit: opts.faceLimit,
+    auto_size: true,
+    // Same seed string -> same mesh, so rerolls are reproducible.
+    model_seed: numericSeed(character.seed),
+    texture_seed: numericSeed(character.seed + ":tex"),
+    image_seed: numericSeed(character.seed + ":img"),
+  };
+}
+
+// v1.0 is the biped rig that unlocks the 90+ preset library;
+// mixamo naming maps straight onto Unity/Unreal humanoid avatars.
+export const rigPayload = (generateTaskId) => ({ input: generateTaskId, model: "v1.0-20240301", rig_type: "biped", spec: "mixamo", out_format: "glb" });
+
+export const retargetPayload = (character, rigTaskId, format, opts) => ({
+  input: rigTaskId,
+  animations: character.animations,
+  out_format: format,
+  bake_animation: true,
+  export_with_geometry: true,
+  animate_in_place: opts.inPlace,
+});
+
+export function rigCheckError(output) {
+  const { riggable, rig_type: rigType } = output ?? {};
+  if (riggable && rigType === "biped") return null;
+  return (
+    `Model is not riggable as a humanoid (riggable=${riggable}, rig_type=${rigType}). ` +
+    "Reroll with a new seed: usually a prop fused to the hands or a cloak merging the legs."
+  );
+}

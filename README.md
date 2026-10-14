@@ -25,6 +25,10 @@ Without a key, everything runs in **dry-run** mode. The pipeline makes no Tripo 
 
 Controls: WASD to move, mouse to aim (hold to attack), Q or right-click for the ability, Space to dodge, E to interact, Esc to pause, M to mute, mouse wheel to zoom.
 
+**Forging from the game:** roll a stranger, press **Forge this hero in 3D**, paste your Tripo API key (`tsk_…`) and start. The browser runs the same generate, rig-check, rig and animate steps as the CLI. Requests go through a same-origin proxy that only allows those Tripo endpoints: `netlify/edge-functions/tripo.js` on Netlify and the matching route in `src/server.js` locally. The key is sent with each request and never stored server-side; it's kept in the browser only if you tick "Remember". Finished steps are saved, so a failed run resumes without re-spending credits. The animated GLB is stored in the browser's IndexedDB, because Tripo's download links expire.
+
+**Netlify:** `netlify.toml` publishes `web/`, copies `src/forge.js` to `web/lib/` at build time, serves the game at `/` and deploys the Tripo proxy edge function. The Forge page (`index.html`) needs the Node server, so it only works locally.
+
 If a forged model faces the wrong way, use **Rotate hero model 90°** in the pause menu. The game remembers it per character.
 
 ## CLI
@@ -61,4 +65,5 @@ Each finished step is saved, so a failure or timeout part-way through doesn't re
 - `src/tripo.js`: v3 API client (create, poll, download, retry, dry run)
 - `src/server.js` + `web/index.html`: web UI with a three.js viewer and clip player
 - `src/cli.js`: command line
-- `web/game.html` + `web/game/`: the game. `main.js` (run flow, loop, menus), `world.js` (clearings, lighting, collision), `player.js`, `enemies.js` (AI and boss), `combat.js` (projectiles, damage, pickups, FX), `models.js` (procedural rigs and the GLB wrapper), `content.js` (kits, enemies, boons, relics), `hud.js`, `audio.js` (synthesized sound)
+- `web/game.html` + `web/game/`: the game. `main.js` (run flow, loop, menus), `world.js` (clearings, lighting, collision), `player.js`, `enemies.js` (AI and boss), `combat.js` (projectiles, damage, pickups, FX), `models.js` (procedural rigs and the GLB wrapper), `content.js` (kits, enemies, boons, relics), `hud.js`, `audio.js` (synthesized sound), `tripo-browser.js` (in-browser forge), `heroes.js` (IndexedDB hero store)
+- `src/tripo-proxy.js`: the allowlist shared by the local and Netlify Tripo proxies

@@ -1,0 +1,17 @@
+# Static deploy of the game. The Forge UI (web/index.html) needs the Node server
+# and a Tripo key, so on Netlify the site root serves the game instead.
+[build]
+  publish = "web"
+  # The game imports the character tables from /lib/forge.js; locally the Node server serves src/forge.js there.
+  command = "mkdir -p web/lib && cp src/forge.js web/lib/forge.js"
+
+[[redirects]]
+  from = "/"
+  to = "/game.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/game"
+  to = "/game.html"
+  status = 200
