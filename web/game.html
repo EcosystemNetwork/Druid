@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Outlaws of Sherwood</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0c0f0a; --panel: #1b2117; --panel-2: #232b1d; --line: #3a4730;
+    --ink: #ede6d0; --muted: #a39d86; --green: #6f9a4a; --green-hi: #8fbf5f;
+    --gold: #e0b050; --red: #d0553f;
+    --common: #b7b09a; --uncommon: #7fbf5a; --rare: #5a9fd6; --legendary: #e0a63a; --epic: #b47ae0;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); font: 14px/1.45 Inter, system-ui, sans-serif; }
+  h1, h2, h3, .display { font-family: Cinzel, Georgia, serif; letter-spacing: .04em; margin: 0; }
+  button { font: 600 14px Inter, sans-serif; border-radius: 8px; padding: 10px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); transition: border-color .15s, background .15s, transform .1s; }
+  button:hover:not(:disabled) { border-color: var(--green-hi); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--green-hi); outline-offset: 2px; }
+  button.primary { background: var(--green); border-color: var(--green); color: #0f140b; }
+  button.primary:hover:not(:disabled) { background: var(--green-hi); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  input, select { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font: inherit; width: 100%; }
+  label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .08em; }
+  .muted { color: var(--muted); }
+
+  #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  body.playing #c { cursor: none; }
+  #fx { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 5; }
+  .float { position: absolute; left: 0; top: 0; font: 800 17px Inter, sans-serif; color: #fff; text-shadow: 0 2px 0 #000, 0 0 6px rgba(0,0,0,.6); white-space: nowrap; will-change: transform; }
+  .float.crit { color: #ffcf4a; font-size: 24px; }
+  .float.hurt { color: #ff5a4a; font-size: 20px; }
+  .float.heal { color: #7dff9a; }
+  .float.info { color: #d8e8c0; font-size: 13px; font-weight: 600; }
+  .float.gold { color: var(--gold); font-size: 14px; }
+  .ebar { position: absolute; left: 0; top: 0; width: 44px; height: 5px; background: rgba(0,0,0,.65); border-radius: 3px; overflow: hidden; }
+  .ebar i { display: block; height: 100%; background: #e04a3a; }
+  .ebar.elite { width: 60px; height: 6px; box-shadow: 0 0 0 1px var(--gold); }
+  .ebar.elite i { background: var(--gold); }
+  .ebar.fleeing i { background: #e8e8e8; }
+
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
+  .hud-tl { position: absolute; left: 16px; top: 16px; width: min(340px, calc(100vw - 32px)); background: rgba(16,20,13,.78); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; backdrop-filter: blur(4px); }
+  .hud-tl .name { font-family: Cinzel, serif; font-weight: 800; font-size: 16px; }
+  .hud-tl .arch { color: var(--muted); font-size: 12px; }
+  .hp { position: relative; height: 18px; background: #2a1512; border-radius: 9px; overflow: hidden; margin-top: 8px; border: 1px solid #4a2a22; }
+  #hpfill { height: 100%; background: linear-gradient(90deg, #b8352a, #e65a3e); transition: width .15s; }
+  #hptext { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 700; text-shadow: 0 1px 0 #000; }
+  #chips, #buffs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; font-size: 11px; }
+  #chips span { background: #10140d; border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; color: var(--muted); font-weight: 600; }
+  #buffs:empty { display: none; }
+  #buffs span { border-radius: 6px; padding: 2px 7px; font-weight: 700; background: #22301a; color: var(--green-hi); border: 1px solid var(--green); }
+  #buffs span.warn { background: #301a16; color: #ff8a6a; border-color: #7a3a2a; }
+  .hud-tr { position: absolute; right: 16px; top: 16px; display: grid; grid-template-columns: auto auto; gap: 2px 14px; background: rgba(16,20,13,.78); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-size: 13px; }
+  .hud-tr span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; align-self: center; }
+  .hud-tr b { text-align: right; font-variant-numeric: tabular-nums; }
+  #gold { color: var(--gold); }
+  .hud-bc { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 10px; }
+  .slot { position: relative; width: 64px; height: 64px; border-radius: 12px; background: rgba(16,20,13,.82); border: 1px solid var(--line); display: grid; place-items: center; text-align: center; overflow: hidden; --cd: 0; }
+  .slot::after { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.65); transform-origin: bottom; transform: scaleY(var(--cd)); }
+  .slot .k { position: absolute; top: 4px; left: 6px; font-size: 10px; font-weight: 700; color: var(--gold); z-index: 1; }
+  .slot .n { font-size: 10px; line-height: 1.15; padding: 14px 4px 0; color: var(--ink); z-index: 1; font-weight: 600; }
+  .slot .t { position: absolute; inset: 0; display: grid; place-items: center; font: 800 20px Inter; z-index: 2; }
+  #bossbar { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); width: min(520px, calc(100vw - 32px)); text-align: center; }
+  #bossbar b { font-family: Cinzel, serif; font-size: 15px; text-shadow: 0 2px 4px #000; }
+  #bossbar .bar { height: 12px; background: #200d0b; border: 1px solid #6a2a20; border-radius: 6px; overflow: hidden; margin-top: 4px; }
+  #bossbar i { display: block; height: 100%; background: linear-gradient(90deg, #8a1a10, #e0402a); transition: width .2s; }
+  #bossbar.enraged .bar { box-shadow: 0 0 14px #ff3a20; }
+  #banner { position: absolute; left: 50%; top: 24%; transform: translate(-50%, -50%); text-align: center; opacity: 0; transition: opacity .35s; width: calc(100vw - 32px); }
+  #banner.show { opacity: 1; }
+  #banner h2 { font-size: clamp(22px, 4vw, 40px); font-weight: 800; text-shadow: 0 3px 12px rgba(0,0,0,.8); }
+  #banner p { margin: 6px 0 0; color: #e8dfc4; text-shadow: 0 2px 6px #000; }
+  #prompt { position: absolute; left: 50%; bottom: 100px; transform: translateX(-50%); background: rgba(16,20,13,.88); border: 1px solid var(--gold); border-radius: 8px; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
+  #prompt kbd { background: var(--gold); color: #1a1408; border-radius: 4px; padding: 0 6px; font: 700 12px Inter; margin-right: 6px; }
+  #vignette { position: fixed; inset: 0; pointer-events: none; z-index: 4; box-shadow: inset 0 0 160px rgba(200,20,10,0); }
+  #vignette.hit { animation: hit .45s ease-out; }
+  body.lowhp #vignette { animation: pulse 1.1s infinite; }
+  @keyframes hit { from { box-shadow: inset 0 0 140px rgba(220,30,10,.75); } to { box-shadow: inset 0 0 160px rgba(200,20,10,0); } }
+  @keyframes pulse { 50% { box-shadow: inset 0 0 120px rgba(200,20,10,.5); } }
+  #crosshair { position: fixed; left: 0; top: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px; pointer-events: none; z-index: 7; border: 2px solid rgba(255,240,200,.85); border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.4); display: none; }
+  #crosshair::after { content: ""; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; background: #fff3c8; border-radius: 50%; }
+  body.playing #crosshair { display: block; }
+
+  .screen { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px; overflow: auto; background: radial-gradient(1000px 600px at 50% 0%, rgba(40,56,30,.55), rgba(8,10,6,.88)); backdrop-filter: blur(3px); }
+  .screen-inner { width: min(1060px, 100%); }
+  .title { text-align: center; margin-bottom: 18px; }
+  .title h1 { font-size: clamp(30px, 6vw, 56px); font-weight: 800; color: #f3e8c8; text-shadow: 0 4px 20px rgba(0,0,0,.6); }
+  .title p { color: var(--muted); margin: 6px 0 0; }
+  .panel { background: rgba(27,33,23,.92); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .select-grid { display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 14px; align-items: start; }
+  @media (max-width: 900px) { .select-grid { grid-template-columns: 1fr; } }
+  .panel h2 { font-size: 15px; margin-bottom: 10px; }
+  .band { display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow: auto; }
+  .band button { text-align: left; display: flex; gap: 10px; align-items: center; padding: 8px; font-weight: 500; }
+  .band button.on { border-color: var(--gold); background: #2c2a1a; }
+  .band img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; background: #111; flex: none; }
+  .band small { display: block; color: var(--muted); font-size: 11px; }
+  .row { display: flex; gap: 8px; } .row > * { flex: 1; }
+  .stack > * + * { margin-top: 10px; }
+  .card { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: linear-gradient(180deg, #252d1e, #1d2418); position: relative; overflow: hidden; }
+  .card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--rar, var(--common)); }
+  .card h3 { font-size: 19px; }
+  .card .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .rar { color: var(--rar); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 10px 0; text-align: center; }
+  .stat { background: #141a10; border-radius: 6px; padding: 5px 2px; }
+  .stat b { display: block; font-size: 17px; font-family: Cinzel, serif; }
+  .stat span { font-size: 10px; color: var(--muted); letter-spacing: .08em; }
+  .trait { font-size: 12.5px; margin-top: 5px; } .trait b { color: var(--gold); font-weight: 600; }
+  .trait.flaw b { color: var(--red); }
+  .kit { margin-top: 8px; font-size: 12.5px; padding: 8px; background: #141a10; border-radius: 6px; }
+  .kit b { color: var(--green-hi); }
+  .controls { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 12.5px; color: var(--muted); margin-top: 12px; }
+  .controls kbd { font: 700 11px Inter; color: var(--ink); background: #10140d; border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; justify-self: start; }
+  .begin { width: 100%; margin-top: 12px; padding: 13px; font-size: 15px; }
+  .note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+  .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
+  .choice { text-align: left; padding: 16px; border-radius: 12px; background: linear-gradient(180deg, #252d1e, #1b2216); border: 1px solid var(--line); min-height: 132px; display: flex; flex-direction: column; gap: 6px; position: relative; overflow: hidden; }
+  .choice::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--rc, var(--common)); }
+  .choice:hover:not(:disabled) { border-color: var(--rc, var(--green-hi)); transform: translateY(-2px); }
+  .choice h3 { font-size: 16px; }
+  .choice .r { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--rc); font-weight: 700; }
+  .choice p { margin: 0; color: #d8d0b8; font-weight: 400; font-size: 13px; }
+  .choice .price { margin-top: auto; color: var(--gold); font-weight: 700; }
+  .center { text-align: center; }
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 16px 0; }
+  .summary div { background: #141a10; border-radius: 8px; padding: 10px; text-align: center; }
+  .summary b { display: block; font: 800 22px Cinzel, serif; }
+  .summary span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  #loading { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: rgba(8,10,6,.85); font-family: Cinzel, serif; font-size: 20px; }
+  @media (max-width: 640px) { .hud-tr { top: auto; bottom: 96px; right: 8px; } .hud-tl { left: 8px; top: 8px; } .slot { width: 54px; height: 54px; } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vignette"></div>
+<div id="fx"></div>
+<div id="crosshair"></div>
+
+<div id="hud" hidden>
+  <div class="hud-tl">
+    <div class="name" id="hname"></div>
+    <div class="arch" id="harch"></div>
+    <div class="hp"><div id="hpfill"></div><div id="hptext"></div></div>
+    <div id="chips"></div>
+    <div id="buffs"></div>
+  </div>
+  <div class="hud-tr">
+    <span>Floor</span><b id="floor"></b>
+    <span>Wave</span><b id="wave"></b>
+    <span>Foes</span><b id="foes"></b>
+    <span>Gold</span><b id="gold"></b>
+    <span>Renown</span><b id="renown"></b>
+  </div>
+  <div class="hud-bc">
+    <div class="slot" id="slot-lmb"><span class="k">LMB</span><span class="n" id="atkname">Attack</span></div>
+    <div class="slot" id="slot-q"><span class="k">Q</span><span class="n" id="abilname">Ability</span><span class="t"></span></div>
+    <div class="slot" id="slot-space"><span class="k">SPACE</span><span class="n">Dodge</span></div>
+  </div>
+  <div id="bossbar" hidden><b></b><div class="bar"><i></i></div></div>
+  <div id="banner"></div>
+  <div id="prompt" hidden></div>
+</div>
+
+<!-- Hero select -->
+<div id="screen-select" class="screen">
+  <div class="screen-inner">
+    <div class="title">
+      <h1>Outlaws of Sherwood</h1>
+      <p>Seven clearings stand between you and the Sheriff of Nottingham.</p>
+    </div>
+    <div class="select-grid">
+      <div class="panel">
+        <h2>The Merry Band</h2>
+        <div id="band" class="band"><span class="muted">Looking for forged heroes…</span></div>
+        <p class="note">Heroes forged on the <a href="/" style="color:var(--green-hi)">Sherwood Forge</a> play with their rigged 3D model.</p>
+      </div>
+      <div class="panel stack">
+        <h2>Roll a stranger</h2>
+        <div><label for="arch">Archetype</label><select id="arch"><option value="">Any</option></select></div>
+        <div><label for="seed">Seed (blank = random)</label><input id="seed" placeholder="e.g. locksley" autocomplete="off" /></div>
+        <button id="rollbtn">Roll</button>
+        <div class="controls">
+          <kbd>WASD</kbd><span>Move</span>
+          <kbd>Mouse</kbd><span>Aim · hold to attack</span>
+          <kbd>Q</kbd><span>Archetype ability</span>
+          <kbd>Space</kbd><span>Dodge roll (brief invulnerability)</span>
+          <kbd>E</kbd><span>Interact with shrines and caches</span>
+          <kbd>Esc</kbd><span>Pause</span>
+          <kbd>M</kbd><span>Mute</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div id="preview"><p class="muted">Pick a hero from the band or roll a stranger.</p></div>
+        <button id="begin" class="primary begin" disabled>Begin the run</button>
+        <p class="note" id="best"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="screen-reward" class="screen" hidden>
+  <div class="screen-inner center">
+    <div class="title"><h1 id="reward-title">Clearing won</h1><p id="reward-sub">Choose a boon for the road ahead.</p></div>
+    <div id="reward-choices" class="choices"></div>
+  </div>
+</div>
+
+<div id="screen-shop" class="screen" hidden>
+  <div class="screen-inner center">
+    <div class="title"><h1>The Outlaw Camp</h1><p>A merchant, a tavern keeper and a few outlaws looking for work. Gold: <b id="shop-gold" style="color:var(--gold)"></b></p></div>
+    <div id="shop-items" class="choices"></div>
+    <div class="actions" style="margin-top:18px"><button id="shop-leave" class="primary">Break camp and move on</button></div>
+  </div>
+</div>
+
+<div id="screen-pause" class="screen" hidden>
+  <div class="panel" style="width:min(420px,100%)">
+    <h2 style="font-size:22px;margin-bottom:12px">Paused</h2>
+    <div id="pause-card"></div>
+    <div class="stack" style="margin-top:12px">
+      <button id="resume" class="primary" style="width:100%">Resume</button>
+      <button id="mute" style="width:100%">Sound: on</button>
+      <button id="turn" style="width:100%" hidden>Rotate hero model 90°</button>
+      <button id="abandon" style="width:100%">Abandon run</button>
+    </div>
+  </div>
+</div>
+
+<div id="screen-summary" class="screen" hidden>
+  <div class="screen-inner center" style="width:min(720px,100%)">
+    <div class="title"><h1 id="sum-title"></h1><p id="sum-sub"></p></div>
+    <div id="sum-stats" class="summary"></div>
+    <div class="actions">
+      <button id="again" class="primary">Run again with this hero</button>
+      <button id="tomenu">Choose another hero</button>
+    </div>
+  </div>
+</div>
+
+<div id="loading" hidden>Summoning your hero…</div>
+
+<script type="module" src="/game/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sherwood Forge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #12160f; --panel: #1b2117; --panel-2: #232b1d; --line: #344029;
+    --ink: #e9e2cc; --muted: #a39d86; --green: #6f9a4a; --green-hi: #8fbf5f;
+    --gold: #d6a84a; --red: #c0553f;
+    --common: #b7b09a; --uncommon: #7fbf5a; --rare: #5a9fd6; --legendary: #e0a63a;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: radial-gradient(1200px 600px at 70% -10%, #23301b 0%, var(--bg) 60%); color: var(--ink);
+    font: 14px/1.45 Inter, system-ui, sans-serif; min-height: 100vh; }
+  h1, h2, .display { font-family: Cinzel, Georgia, serif; letter-spacing: .04em; }
+  header { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 20px; margin: 0; font-weight: 800; }
+  header .tag { color: var(--muted); font-size: 13px; }
+  .pill { margin-left: auto; font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+  .play { font: 600 13px Inter, sans-serif; color: #10140c; background: var(--gold); padding: 6px 12px; border-radius: 6px; text-decoration: none; }
+  .play:hover { filter: brightness(1.1); }
+  .pill.live { color: var(--green-hi); border-color: var(--green); }
+  main { display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px 24px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } header { padding: 12px 16px; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .stack > * + * { margin-top: 14px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .06em; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  select, input { width: 100%; background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font: inherit; }
+  select:focus, input:focus, button:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+  button { font: 600 14px Inter, sans-serif; border-radius: 6px; padding: 10px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); }
+  button:hover { border-color: var(--green); }
+  button.primary { background: var(--green); border-color: var(--green); color: #10140c; }
+  button.primary:hover { background: var(--green-hi); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; } .row > * { flex: 1; }
+  .card { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: linear-gradient(180deg, #252d1e, #1d2418); position: relative; overflow: hidden; }
+  .card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--rar, var(--common)); }
+  .card h2 { margin: 0; font-size: 20px; }
+  .card .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .rar { color: var(--rar); font-weight: 600; }
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 12px 0; text-align: center; }
+  .stat { background: #141a10; border-radius: 6px; padding: 6px 2px; }
+  .stat b { display: block; font-size: 18px; font-family: Cinzel, serif; }
+  .stat span { font-size: 10px; color: var(--muted); letter-spacing: .08em; }
+  .trait { font-size: 13px; margin-top: 6px; } .trait b { color: var(--gold); font-weight: 600; }
+  .trait.flaw b { color: var(--red); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 10px; }
+  details p { font-size: 12px; color: var(--muted); background: #141a10; padding: 8px; border-radius: 6px; }
+  .viewer { position: relative; min-height: 520px; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .stage-wrap { flex: 1; min-height: 420px; position: relative; }
+  #stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); text-align: center; pointer-events: none; padding: 24px; }
+  .clips { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--line); min-height: 50px; }
+  .clips button { padding: 6px 10px; font-size: 12px; }
+  .clips button.on { border-color: var(--gold); color: var(--gold); }
+  .clips .turn { margin-left: auto; }
+  .downloads { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 12px 12px; }
+  .downloads a { color: var(--green-hi); font-size: 12px; text-decoration: none; border: 1px solid var(--line); padding: 4px 8px; border-radius: 6px; }
+  .steps { list-style: none; padding: 0; margin: 0; }
+  .steps li { display: grid; grid-template-columns: 90px 1fr 54px; gap: 10px; align-items: center; padding: 5px 0; font-size: 13px; }
+  .bar { height: 6px; background: #141a10; border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--green); transition: width .4s; }
+  .steps li.failed .bar i { background: var(--red); width: 100%; }
+  .steps li.skipped .bar i, .steps li.success .bar i { width: 100%; }
+  .steps .st { color: var(--muted); text-align: right; font-size: 12px; }
+  .msg { font-size: 13px; margin-top: 8px; } .msg.err { color: var(--red); }
+  .gallery { grid-column: 1 / -1; }
+  .gallery-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+  .g-item { text-align: left; padding: 10px; display: flex; gap: 10px; align-items: center; }
+  .g-item img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; background: #141a10; }
+  .g-item small { display: block; color: var(--muted); font-weight: 400; }
+  .muted { color: var(--muted); }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header>
+  <h1>Sherwood Forge</h1>
+  <span class="tag">Robin Hood roguelike character generator · Tripo3D</span>
+  <span id="mode" class="pill">…</span>
+  <a class="play" href="/game">Play the game ▶</a>
+</header>
+
+<main>
+  <section class="stack">
+    <div class="panel stack">
+      <div class="grid2">
+        <div><label for="archetype">Archetype</label><select id="archetype"><option value="">Random</option></select></div>
+        <div><label for="rarity">Rarity</label><select id="rarity"><option value="">Random (weighted)</option></select></div>
+        <div><label for="style">Art style</label><select id="style"></select></div>
+        <div><label for="sex">Sex</label><select id="sex"><option value="">Random</option><option value="man">Man</option><option value="woman">Woman</option></select></div>
+      </div>
+      <div><label for="seed">Seed (blank = random)</label><input id="seed" placeholder="e.g. locksley" /></div>
+      <div class="row"><button id="roll">Roll character</button></div>
+    </div>
+
+    <div id="card" class="card" hidden></div>
+
+    <div class="panel stack">
+      <div class="grid2">
+        <div><label for="texq">Texture</label><select id="texq">
+          <option value="standard">Standard</option><option value="detailed" selected>Detailed</option><option value="extreme">Extreme (8K)</option></select></div>
+        <div><label for="geoq">Geometry</label><select id="geoq">
+          <option value="standard" selected>Standard</option><option value="detailed">Ultra</option></select></div>
+        <div><label for="faces">Face limit</label><input id="faces" type="number" min="1000" max="300000" step="1000" value="40000" /></div>
+        <div><label for="fbx">Export</label><select id="fbx"><option value="0">GLB</option><option value="1">GLB + FBX</option></select></div>
+      </div>
+      <button id="forge" class="primary" style="width:100%" disabled>Forge 3D character</button>
+      <p class="muted" style="margin:0;font-size:12px">Generates a PBR-textured mesh, checks it can be rigged, adds a Mixamo-style humanoid skeleton and bakes the animation set into one file.</p>
+    </div>
+
+    <div id="job" class="panel" hidden>
+      <ul class="steps" id="steps"></ul>
+      <div id="jobmsg" class="msg"></div>
+    </div>
+  </section>
+
+  <section class="panel viewer">
+    <div class="stage-wrap"><canvas id="stage"></canvas></div>
+    <div id="empty" class="empty">Roll a character, then forge it.<br/>The rigged, animated model shows up here.</div>
+    <div id="clips" class="clips"></div>
+    <div id="downloads" class="downloads"></div>
+  </section>
+
+  <section class="panel gallery">
+    <h2 style="margin:0;font-size:16px">The Merry Band</h2>
+    <div id="gallery" class="gallery-list"><span class="muted">No characters forged yet.</span></div>
+  </section>
+</main>
+
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+const $ = (id) => document.getElementById(id);
+const STEP_LABELS = { generate: "Mesh + PBR", rigcheck: "Rig check", rig: "Auto-rig", animate: "Animate", fbx: "FBX export" };
+let meta, current, pollTimer;
+
+// ---------- viewer ----------
+const canvas = $("stage");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 100);
+camera.position.set(0, 1.2, 4);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+const sun = new THREE.DirectionalLight(0xfff1d6, 1.6);
+sun.position.set(2, 4, 3); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+scene.add(sun, new THREE.HemisphereLight(0x9fc27a, 0x2a2014, 0.5));
+const ground = new THREE.Mesh(new THREE.CircleGeometry(1.4, 48), new THREE.ShadowMaterial({ opacity: 0.35 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+let model, mixer, activeAction;
+const clock = new THREE.Clock();
+const loader = new GLTFLoader();
+
+function resize() {
+  const { clientWidth: w, clientHeight: h } = canvas;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(canvas);
+renderer.setAnimationLoop(() => { mixer?.update(clock.getDelta()); controls.update(); renderer.render(scene, camera); });
+
+function loadModel(url) {
+  $("empty").textContent = "Loading model…";
+  $("empty").hidden = false;
+  loader.load(url, (gltf) => {
+    if (model) scene.remove(model);
+    model = gltf.scene;
+    model.traverse((o) => { if (o.isMesh) { o.castShadow = true; } });
+    // Normalise to ~1.8 m tall, feet on the ground.
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const s = 1.8 / (size.y || 1);
+    model.scale.setScalar(s);
+    box.setFromObject(model);
+    const c = box.getCenter(new THREE.Vector3());
+    model.position.sub(new THREE.Vector3(c.x, box.min.y, c.z));
+    scene.add(model);
+    controls.target.set(0, 0.95, 0); camera.position.set(0, 1.3, 4.2);
+
+    mixer = gltf.animations.length ? new THREE.AnimationMixer(model) : null;
+    activeAction = null;
+    const clips = $("clips"); clips.innerHTML = "";
+    gltf.animations.forEach((clip, i) => {
+      const b = document.createElement("button");
+      b.textContent = prettyClip(clip.name);
+      b.onclick = () => playClip(clip, b);
+      clips.append(b);
+      if (i === 0 || /idle/i.test(clip.name)) b.click();
+    });
+    if (!gltf.animations.length) clips.innerHTML = '<span class="muted" style="font-size:12px;padding:6px">Static mesh (no animations yet)</span>';
+    // Tripo exports X-forward by default; three.js cameras expect Z-forward.
+    const turn = document.createElement("button");
+    turn.className = "turn"; turn.textContent = "↻ 90°"; turn.title = "Rotate model";
+    turn.onclick = () => { model.rotation.y += Math.PI / 2; };
+    clips.append(turn);
+    $("empty").hidden = true;
+  }, undefined, (err) => { $("empty").textContent = "Couldn't load model: " + err.message; });
+}
+
+function playClip(clip, btn) {
+  const next = mixer.clipAction(clip);
+  if (activeAction && activeAction !== next) activeAction.fadeOut(0.25);
+  next.reset().fadeIn(0.25).play();
+  activeAction = next;
+  [...$("clips").children].forEach((c) => c.classList.toggle("on", c === btn));
+}
+const prettyClip = (n) => n.replace(/^.*[:|]/, "").replace(/preset_?|biped_?/gi, "").replace(/_/g, " ").trim() || n;
+
+// ---------- character card ----------
+function renderCard(c) {
+  const card = $("card");
+  card.hidden = false;
+  card.style.setProperty("--rar", `var(--${c.rarity})`);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+  card.innerHTML = `
+    <h2>${esc(c.name)}</h2>
+    <div class="sub"><span class="rar">${esc(c.rarityLabel)}</span> ${esc(c.archetypeLabel)} · ${esc(c.role)} · seed <code>${esc(c.seed)}</code></div>
+    <div class="stats">
+      ${[["HP", c.hp], ["MIG", c.stats.might], ["FIN", c.stats.finesse], ["CUN", c.stats.cunning], ["GRT", c.stats.grit]]
+        .map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("")}
+    </div>
+    ${c.perks.map((p) => `<div class="trait"><b>${esc(p.name)}.</b> ${esc(p.text)}</div>`).join("")}
+    <div class="trait flaw"><b>${esc(c.flaw.name)}.</b> ${esc(c.flaw.text)}</div>
+    <div class="trait"><b>Relic:</b> ${esc(c.relic)} · <b>Gold:</b> ${c.gold}</div>
+    <details><summary>Tripo prompt & animation set</summary>
+      <p>${esc(c.prompt)}</p>
+      <p>${c.animations.map((a) => esc(a.split(":").pop())).join(" · ")}</p>
+    </details>`;
+}
+
+const rollParams = () => ({
+  seed: $("seed").value.trim() || undefined,
+  archetype: $("archetype").value || undefined,
+  rarity: $("rarity").value || undefined,
+  style: $("style").value,
+  sex: $("sex").value || undefined,
+});
+
+async function roll() {
+  current = await fetch("/api/roll", { method: "POST", body: JSON.stringify(rollParams()) }).then((r) => r.json());
+  renderCard(current);
+  $("forge").disabled = false;
+}
+
+// ---------- jobs ----------
+async function forge() {
+  if (!current) return;
+  $("forge").disabled = true;
+  const body = {
+    // Pin the seed and archetype that produced the card being shown.
+    roll: { seed: current.seed, archetype: current.archetype, rarity: current.rarity, sex: current.look.sex, style: current.style },
+    options: {
+      textureQuality: $("texq").value, geometryQuality: $("geoq").value,
+      faceLimit: Number($("faces").value), fbx: $("fbx").value === "1",
+    },
+  };
+  const { jobId } = await fetch("/api/forge", { method: "POST", body: JSON.stringify(body) }).then((r) => r.json());
+  const steps = ["generate", "rigcheck", "rig", "animate", ...(body.options.fbx ? ["fbx"] : [])];
+  $("job").hidden = false;
+  $("steps").innerHTML = steps.map((s) => `<li data-step="${s}"><span>${STEP_LABELS[s]}</span><div class="bar"><i></i></div><span class="st">waiting</span></li>`).join("");
+  $("jobmsg").textContent = ""; $("jobmsg").className = "msg";
+  clearInterval(pollTimer);
+  const shown = new Set();
+  pollTimer = setInterval(async () => {
+    const job = await fetch(`/api/jobs/${jobId}`).then((r) => r.json());
+    for (const e of job.events) {
+      const li = $("steps").querySelector(`[data-step="${e.step}"]`);
+      if (li) {
+        li.className = e.status;
+        li.querySelector(".bar i").style.width = (e.status === "running" ? e.progress ?? 0 : 100) + "%";
+        li.querySelector(".st").textContent = e.status === "running" ? `${e.progress ?? 0}%` : e.status;
+      }
+      const key = e.step + e.status;
+      if (e.status === "success" && e.files?.model && !shown.has(key) && ["generate", "rig", "animate"].includes(e.step)) {
+        shown.add(key);
+        // Show progress visually: textured mesh first, then the animated result.
+        loadModel(fileUrl(job.dir, e.files.model));
+      }
+      if (e.step === "error") { $("jobmsg").textContent = e.message; $("jobmsg").className = "msg err"; }
+      if (e.step === "done") $("jobmsg").textContent = `Done · ${e.totalCredits} credits${job.dir.startsWith("_dryrun") ? " (dry run)" : ""}`;
+    }
+    if (job.status !== "running") {
+      clearInterval(pollTimer); $("forge").disabled = false; loadGallery();
+      if (job.status === "success") showDownloads(job.dir);
+    }
+  }, 1500);
+}
+
+const fileUrl = (dir, f) => (/^https?:/.test(f) ? f : `/output/${dir}/${f}`);
+
+async function showDownloads(dir) {
+  const list = await fetch("/api/characters").then((r) => r.json());
+  const entry = list.find((x) => x.dir === dir);
+  const links = [];
+  for (const [step, files] of Object.entries(entry?.files ?? {}))
+    for (const [kind, f] of Object.entries(files)) links.push(`<a href="${fileUrl(dir, f)}" download>${STEP_LABELS[step]} · ${kind}</a>`);
+  links.push(`<a href="/output/${dir}/character.json" download>character.json</a>`);
+  if (entry?.complete) links.push(`<a href="/game?dir=${encodeURIComponent(dir)}">Play this hero ▶</a>`);
+  $("downloads").innerHTML = links.join("");
+}
+
+async function loadGallery() {
+  const list = await fetch("/api/characters").then((r) => r.json());
+  if (!list.length) return;
+  $("gallery").innerHTML = "";
+  for (const item of list) {
+    const c = item.character;
+    const files = item.files;
+    const best = files.animate?.model ?? files.rig?.model ?? files.generate?.model;
+    const thumb = files.generate?.rendered_image;
+    const b = document.createElement("button");
+    b.className = "g-item";
+    b.innerHTML = `${thumb && !/^https?:/.test(thumb) ? `<img src="${fileUrl(item.dir, thumb)}" alt="">` : ""}
+      <span><span style="color:var(--${c.rarity})">${c.name}</span>
+      <small>${c.archetypeLabel} · ${item.complete ? "ready" : item.error ? "failed" : "incomplete"}${item.dryRun ? " · dry run" : ""}</small></span>`;
+    b.disabled = !best;
+    b.onclick = () => { current = c; renderCard(c); loadModel(fileUrl(item.dir, best)); showDownloads(item.dir); $("forge").disabled = false; };
+    $("gallery").append(b);
+  }
+}
+
+// ---------- init ----------
+meta = await fetch("/api/meta").then((r) => r.json());
+for (const a of meta.archetypes) $("archetype").add(new Option(`${a.label} · ${a.role}`, a.id));
+for (const r of meta.rarities) $("rarity").add(new Option(r.label, r.id));
+for (const s of meta.styles) $("style").add(new Option(s[0].toUpperCase() + s.slice(1), s));
+$("mode").textContent = meta.dryRun ? "Dry run · no API key" : "Live · Tripo API";
+$("mode").classList.toggle("live", !meta.dryRun);
+$("roll").onclick = roll;
+$("forge").onclick = forge;
+loadGallery();
+</script>
+</body>
+</html>

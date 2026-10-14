@@ -1,0 +1,15 @@
+{
+  "name": "sherwood-forge",
+  "version": "0.1.0",
+  "description": "Robin Hood themed medieval roguelike character generator: textured, rigged and animated 3D models via the Tripo3D v3 API.",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=20.12" },
+  "scripts": {
+    "start": "node src/server.js",
+    "roll": "node src/cli.js roll",
+    "forge": "node src/cli.js forge",
+    "dry": "node src/cli.js forge --dry-run",
+    "balance": "node src/cli.js balance"
+  }
+}
