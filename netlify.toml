@@ -2,14 +2,19 @@
 # and a Tripo key, so on Netlify the site root serves the game instead.
 [build]
   publish = "web"
-  # The game imports the character tables from /lib/forge.js; locally the Node server serves src/forge.js there.
-  command = "mkdir -p web/lib && cp src/forge.js web/lib/forge.js"
+  # The game and the creator import /lib/forge.js and /lib/portrait.js; locally the Node server serves them from src/.
+  command = "mkdir -p web/lib && cp src/forge.js src/portrait.js web/lib/"
 
 [[redirects]]
   from = "/"
   to = "/game.html"
   status = 200
   force = true
+
+[[redirects]]
+  from = "/creator"
+  to = "/creator.html"
+  status = 200
 
 [[redirects]]
   from = "/game"

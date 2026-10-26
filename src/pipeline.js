@@ -23,6 +23,8 @@ export async function runPipeline({ client, character, outDir, options = {}, onE
 
   const statePath = path.join(dir, "state.json");
   const state = await readFile(statePath, "utf8").then(JSON.parse).catch(() => ({ steps: {} }));
+  // Finished steps only carry over for the same prompt; otherwise they describe another model.
+  if (state.character?.prompt && state.character.prompt !== character.prompt) state.steps = {};
   delete state.error;
   state.character = character;
   state.options = opts;

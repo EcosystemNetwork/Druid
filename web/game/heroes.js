@@ -34,3 +34,40 @@ export async function listHeroes() {
     return []; // private windows or blocked storage
   }
 }
+
+// The shared gallery (Supabase, behind /api/heroes) is the durable copy everyone sees.
+// The IndexedDB copy above is a fast local cache and a fallback until a publish succeeds.
+
+export async function listGallery() {
+  try {
+    const r = await fetch("/api/heroes");
+    if (r.ok && r.headers.get("content-type")?.includes("json")) return await r.json();
+  } catch {}
+  return [];
+}
+
+// The server fetches the model from Tripo itself, so only the task ids and the key are sent.
+export async function publishHero(key, hero) {
+  const res = await fetch("/api/heroes", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ character: hero.character, tasks: hero.tasks }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? `Publishing failed (HTTP ${res.status})`);
+  await saveHero({ ...hero, published: true });
+  return body;
+}
+
+// Retries heroes whose publish failed earlier; called whenever a working key is at hand.
+export async function publishPending(key) {
+  let count = 0;
+  for (const h of await listHeroes()) {
+    if (!h.tasks || h.published) continue;
+    try {
+      await publishHero(key, h);
+      count++;
+    } catch {}
+  }
+  return count;
+}

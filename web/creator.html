@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Outlaw Creator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #12160f; --panel: #1b2117; --panel-2: #232b1d; --line: #344029; --line-2: #4a5a3a;
+    --ink: #e9e2cc; --muted: #a39d86; --green: #6f9a4a; --green-hi: #8fbf5f;
+    --gold: #d6a84a; --red: #c0553f;
+    --common: #b7b09a; --uncommon: #7fbf5a; --rare: #5a9fd6; --legendary: #e0a63a;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: radial-gradient(1200px 600px at 70% -10%, #23301b 0%, var(--bg) 60%) fixed, var(--bg); color: var(--ink);
+    font: 14px/1.45 Inter, system-ui, sans-serif; min-height: 100vh; }
+  h1, h2, h3, .display { font-family: Cinzel, Georgia, serif; letter-spacing: .04em; }
+  a { color: var(--green-hi); }
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 20px; margin: 0; font-weight: 800; }
+  header .tag { color: var(--muted); font-size: 13px; }
+  nav { margin-left: auto; display: flex; gap: 8px; }
+  nav a { font: 600 13px Inter, sans-serif; color: var(--ink); text-decoration: none; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); }
+  nav a:hover { border-color: var(--green); }
+  nav a.cta { background: var(--gold); color: #10140c; border-color: var(--gold); }
+
+  main { display: grid; grid-template-columns: minmax(320px, 440px) 1fr; gap: 20px; padding: 20px 24px 40px; max-width: 1440px; margin: 0 auto; }
+  @media (max-width: 920px) { main { grid-template-columns: 1fr; padding: 16px; } header { padding: 12px 16px; } nav { margin-left: 0; } }
+
+  .preview { position: sticky; top: 16px; align-self: start; display: flex; flex-direction: column; gap: 12px; }
+  @media (max-width: 920px) { .preview { position: static; } }
+  .portrait { aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: #0c0f0a; box-shadow: 0 18px 50px -20px #000; }
+  .portrait svg { display: block; width: 100%; height: 100%; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+
+  .meter { position: relative; height: 10px; border-radius: 99px; background: linear-gradient(90deg, var(--common) 0 10%, var(--uncommon) 10% 22.5%, var(--rare) 22.5% 45%, var(--legendary) 45%); opacity: .35; }
+  .meter-wrap { position: relative; margin: 8px 0 4px; }
+  .meter-pin { position: absolute; top: -5px; width: 4px; height: 20px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 2px var(--bg); transition: left .25s; }
+  .meter-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .rarity-line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .rarity-line b { font-family: Cinzel, serif; font-size: 18px; color: var(--rar, var(--common)); }
+  .rarity-line span { color: var(--muted); font-size: 12px; }
+
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; text-align: center; margin-top: 10px; }
+  .stat { background: #141a10; border-radius: 6px; padding: 6px 2px; }
+  .stat b { display: block; font-size: 18px; font-family: Cinzel, serif; }
+  .stat span { font-size: 10px; color: var(--muted); letter-spacing: .08em; }
+  .trait { font-size: 13px; margin-top: 8px; } .trait b { color: var(--gold); font-weight: 600; } .trait.flaw b { color: var(--red); }
+
+  .status { font-size: 13px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: #141a10; }
+  .status.ok { border-color: var(--green); color: var(--green-hi); }
+  .status.bad { border-color: var(--red); color: #e88a74; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .actions .wide { grid-column: 1 / -1; }
+
+  button, select { font: 600 13px Inter, sans-serif; border-radius: 8px; padding: 9px 12px; cursor: pointer; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); }
+  button:hover:not(:disabled) { border-color: var(--green); }
+  button:focus-visible, select:focus-visible { outline: 2px solid var(--green-hi); outline-offset: 2px; }
+  button.primary { background: var(--gold); border-color: var(--gold); color: #10140c; }
+  button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+
+  .builder { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .group h2 { font-size: 15px; margin: 0 0 10px; color: var(--gold); }
+  .slot { padding: 12px 0; border-top: 1px solid var(--line); }
+  .slot:first-of-type { border-top: 0; padding-top: 0; }
+  .slot-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .slot-head h3 { font-size: 13px; margin: 0; letter-spacing: .08em; text-transform: uppercase; font-family: Inter, sans-serif; color: var(--muted); font-weight: 600; }
+  .slot-head .pick { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .slot-head .lock { margin-left: auto; padding: 4px 8px; font-size: 12px; font-weight: 500; color: var(--muted); }
+  .slot-head .lock[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; font-weight: 500; text-align: left; line-height: 1.2; }
+  .chip[aria-pressed="true"] { border-color: var(--tier, var(--green-hi)); background: color-mix(in srgb, var(--tier, var(--green)) 18%, var(--panel-2)); }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tier); flex: none; }
+  .chip .left { font-size: 11px; color: var(--muted); font-weight: 500; }
+  .chip .sw { display: inline-flex; border-radius: 4px; overflow: hidden; flex: none; }
+  .chip .sw i { width: 12px; height: 18px; }
+  .chip .skin { width: 18px; height: 18px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px #0004; }
+  .chip.soldout { text-decoration: line-through; }
+  .arch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .arch { text-align: left; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+  .arch[aria-pressed="true"] { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, var(--panel-2)); }
+  .arch b { font-family: Cinzel, serif; font-size: 14px; }
+  .arch small { color: var(--muted); font-weight: 500; }
+  .arch .mini { display: flex; gap: 8px; font-size: 11px; color: var(--muted); font-weight: 500; }
+  .legend-tiers { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .legend-tiers span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend-tiers i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .minted { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .minted a { display: block; text-decoration: none; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel-2); }
+  .minted img { width: 100%; display: block; aspect-ratio: 1; }
+  .minted span { display: block; padding: 6px 8px; font-size: 12px; }
+  .muted { color: var(--muted); }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--line-2); padding: 10px 14px; border-radius: 8px; font-size: 13px; box-shadow: 0 10px 30px #0008; }
+
+  .view-tabs { display: flex; gap: 6px; }
+  .view-tabs button { flex: 1; padding: 7px 10px; }
+  .view-tabs button[aria-selected="true"] { border-color: var(--gold); color: var(--gold); }
+  .view-tabs .tick { color: var(--green-hi); }
+  .stage { position: relative; aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: radial-gradient(circle at 50% 35%, #2a3520, #0c0f0a 75%); box-shadow: 0 18px 50px -20px #000; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .stage .empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--muted); pointer-events: none; }
+  .stage .clips { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .stage .clips button { padding: 5px 9px; font-size: 12px; background: #1b2117d9; }
+  .stage .clips button.on { border-color: var(--gold); color: var(--gold); }
+  .stage .clips .turn { margin-left: auto; }
+  .stage .badge { position: absolute; top: 10px; left: 10px; font-size: 11px; padding: 3px 8px; border-radius: 99px; background: #1b2117d9; border: 1px solid var(--line-2); color: var(--muted); }
+  .forge-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .forge-head b { font-family: Cinzel, serif; font-size: 15px; color: var(--gold); }
+  .forge-head span { font-size: 12px; color: var(--muted); }
+  .forge-note { font-size: 13px; color: var(--muted); margin: 0 0 10px; }
+  .forge-note.ok { color: var(--green-hi); } .forge-note.bad { color: #e88a74; }
+  .forge-row { display: flex; gap: 8px; align-items: center; }
+  .forge-row label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .forge-row button { flex: 1; }
+  .steps { list-style: none; padding: 0; margin: 10px 0 0; }
+  .steps li { display: grid; grid-template-columns: 84px 1fr 56px; gap: 10px; align-items: center; padding: 4px 0; font-size: 12px; }
+  .bar { height: 6px; background: #141a10; border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--green); transition: width .4s; }
+  .steps li.failed .bar i { background: var(--red); width: 100%; }
+  .steps li.skipped .bar i, .steps li.success .bar i { width: 100%; }
+  .steps .st { color: var(--muted); text-align: right; }
+  .forge-links { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 10px; font-size: 12px; }
+  .minted .has3d { float: right; font-size: 10px; color: var(--gold); border: 1px solid var(--gold); border-radius: 4px; padding: 0 4px; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header>
+  <h1>Outlaws of Sherwood</h1>
+  <span class="tag">Build-your-own outlaw · Robinhood Chain collection</span>
+  <nav>
+    <a href="/">3D Forge</a>
+    <a class="cta" href="/game">Play ▶</a>
+  </nav>
+</header>
+
+<main>
+  <section class="preview" aria-label="Preview">
+    <div class="view-tabs" role="tablist">
+      <button id="tab-portrait" role="tab" aria-selected="true" aria-controls="portrait">Portrait</button>
+      <button id="tab-3d" role="tab" aria-selected="false" aria-controls="stage">3D model <span id="tab-tick"></span></button>
+    </div>
+    <div id="portrait" class="portrait" role="img" aria-label="Character portrait"></div>
+    <div id="stage" class="stage" role="tabpanel" hidden>
+      <canvas id="canvas"></canvas>
+      <div id="stage-empty" class="empty">Not forged yet.<br>Forge this outlaw to see it rigged and animated.</div>
+      <span id="stage-badge" class="badge" hidden></span>
+      <div id="clips" class="clips"></div>
+    </div>
+    <div class="panel">
+      <div class="rarity-line"><b id="rarity">—</b><span id="score"></span></div>
+      <div class="meter-wrap"><div class="meter"></div><div id="pin" class="meter-pin"></div></div>
+      <div class="meter-labels"><span>Common</span><span>Uncommon 4</span><span>Rare 9</span><span>Legendary 18+</span></div>
+      <div id="stats" class="stats"></div>
+      <div id="traits"></div>
+    </div>
+    <div id="forge-panel" class="panel" hidden>
+      <div class="forge-head"><b>Forge in 3D</b><span id="balance"></span></div>
+      <p id="forge-note" class="forge-note"></p>
+      <div class="forge-row">
+        <label>Texture <select id="texq"><option value="standard">Standard</option><option value="detailed" selected>Detailed</option><option value="extreme">Extreme</option></select></label>
+        <button id="forge" class="primary">Forge in 3D</button>
+      </div>
+      <ul id="steps" class="steps" hidden></ul>
+      <div id="forge-links" class="forge-links"></div>
+    </div>
+    <div id="status" class="status">Checking…</div>
+    <div class="actions">
+      <button id="reserve" class="primary wide" disabled>Reserve this outlaw</button>
+      <button id="png">Download portrait</button>
+      <button id="json">Download metadata</button>
+      <button id="share" class="wide">Copy share link</button>
+    </div>
+  </section>
+
+  <section class="builder">
+    <div class="panel toolbar">
+      <button id="roll">🎲 Roll unlocked traits</button>
+      <button id="unlock">Unlock all</button>
+      <span class="spacer"></span>
+      <label>3D style <select id="style"></select></label>
+    </div>
+    <div class="panel legend-tiers" id="tiers"></div>
+    <div class="panel group"><h2>The Outlaw</h2><div id="g-identity"></div></div>
+    <div class="panel group"><h2>The Look</h2><div id="g-look"></div></div>
+    <div class="panel group"><h2>The Legend</h2><div id="g-legend"></div></div>
+    <div class="panel group" id="minted-panel" hidden><h2>Reserved so far</h2><div id="minted" class="minted"></div></div>
+  </section>
+</main>
+<div id="toast" class="toast" hidden role="status"></div>
+
+<script type="module">
+import { ARCHETYPES, COLLECTION, STYLES, TIERS, forgeCharacter, optionCap, rarityFromScore, soldOutTraits, supplyKey, tokenMetadata, traitCatalog } from "/lib/forge.js";
+import { portraitSVG } from "/lib/portrait.js";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+const GROUPS = {
+  identity: ["archetype", "sex", "skin", "age", "build"],
+  look: ["hair", "face", "outfit", "gear", "sidearm", "palette", "background"],
+  legend: ["first", "epithet", "relic", "perk", "perk2", "flaw"],
+};
+const MAX_SCORE = 40; // meter scale: thresholds 4, 9, 18 sit at 10%, 22.5%, 45% (see .meter)
+
+let traits = {};
+let style = "stylized";
+const locks = new Set();
+let character = null;
+let server = null; // { minted, counts } when the local mint registry is reachable
+let checkTimer, checkSeq = 0;
+let meta = null; // /api/meta when the local server (and so the Tripo pipeline) is reachable
+let forged = null; // the current build's forge on the server: { dir, complete, dryRun, files, credits, error }
+let job = null; // { id, character } while a forge runs
+let shownModel = null; // URL loaded in the 3D viewer
+
+// ---------- trait state ----------
+
+const catalog = () => traitCatalog(traits.archetype, traits.sex);
+const optionsFor = (slotId) => catalog().find((s) => s.id === slotId).options;
+const remaining = (slotId, o) => {
+  const cap = optionCap(o);
+  if (cap == null) return null;
+  return cap - (server?.counts[supplyKey(slotId, traits.archetype, o.id)] ?? 0);
+};
+
+// Keep every trait valid after archetype/sex changes (outfits differ per archetype, names per sex).
+function normalize() {
+  for (const s of catalog()) {
+    if (s.id === "archetype" || s.id === "sex") continue;
+    if (s.id === "perk2") continue;
+    if (!s.options.some((o) => o.id === traits[s.id])) traits[s.id] = s.options[0].id;
+  }
+  const score = currentScore();
+  if (traits.perk2 && (rarityFromScore(score) !== "legendary" || traits.perk2 === traits.perk)) delete traits.perk2;
+}
+
+function currentScore() {
+  return catalog().filter((s) => s.scored).reduce((n, s) => n + TIERS[s.options.find((o) => o.id === traits[s.id])?.tier ?? "common"].points, 0);
+}
+
+function weightedPick(slotId, options) {
+  const open = options.filter((o) => remaining(slotId, o) !== 0);
+  const pool = open.length ? open : options;
+  const total = pool.reduce((n, o) => n + TIERS[o.tier].weight, 0);
+  let r = Math.random() * total;
+  for (const o of pool) if ((r -= TIERS[o.tier].weight) < 0) return o.id;
+  return pool.at(-1).id;
+}
+
+function rollUnlocked() {
+  for (const slot of ["archetype", "sex"]) if (!locks.has(slot)) traits[slot] = weightedPick(slot, optionsFor(slot));
+  for (const s of catalog()) {
+    if (s.id === "archetype" || s.id === "sex" || s.id === "perk2" || locks.has(s.id)) continue;
+    traits[s.id] = weightedPick(s.id, s.options);
+  }
+  if (!locks.has("perk2")) delete traits.perk2;
+  normalize();
+  update();
+}
+
+// ---------- render ----------
+
+function tierStyle(o) { return `--tier: var(--${o.tier})`; }
+
+function chipExtra(slotId, o) {
+  if (slotId === "palette" && o.colors) return `<span class="sw">${o.colors.map((c) => `<i style="background:${c}"></i>`).join("")}</span>`;
+  if (slotId === "skin" && o.color) return `<span class="skin" style="background:${o.color}"></span>`;
+  if (slotId === "background" && o.colors) return `<span class="sw"><i style="background:linear-gradient(${o.colors[1]},${o.colors[0]});width:22px"></i></span>`;
+  return `<span class="dot"></span>`;
+}
+
+function renderSlot(s) {
+  const legendaryOnly = s.legendaryOnly && rarityFromScore(currentScore()) !== "legendary";
+  const chosen = s.options.find((o) => o.id === traits[s.id]);
+  const head = `<div class="slot-head"><h3>${esc(s.label)}</h3><span class="pick">${chosen ? esc(chosen.label) : legendaryOnly ? '<span class="muted">Legendary characters only</span>' : '<span class="muted">None</span>'}</span>
+    ${s.id === "perk2" ? "" : `<button class="lock" data-lock="${s.id}" aria-pressed="${locks.has(s.id)}" title="Keep this trait when rolling">${locks.has(s.id) ? "🔒 Locked" : "🔓"}</button>`}</div>`;
+  if (s.id === "archetype") {
+    return `<div class="slot">${head}<div class="arch-grid">${s.options.map((o) => {
+      const a = ARCHETYPES[o.id];
+      return `<button class="arch" data-slot="archetype" data-id="${o.id}" aria-pressed="${o.id === traits.archetype}"><b>${esc(a.label)}</b><small>${esc(a.role)}</small>
+        <span class="mini"><span>MIG ${a.base.might}</span><span>FIN ${a.base.finesse}</span><span>CUN ${a.base.cunning}</span><span>GRT ${a.base.grit}</span></span></button>`;
+    }).join("")}</div></div>`;
+  }
+  if (legendaryOnly) return `<div class="slot">${head}</div>`;
+  const chips = s.options.map((o) => {
+    const left = remaining(s.id, o);
+    const sold = left !== null && left <= 0 && o.id !== traits[s.id];
+    const disabled = sold || (s.id === "perk2" && o.id === traits.perk);
+    const leftText = left === null ? "" : server ? `${Math.max(0, left)} left` : `${optionCap(o)} max`;
+    const title = [TIERS[o.tier].label, o.text && o.text !== o.label ? o.text : ""].filter(Boolean).join(" · ");
+    return `<button class="chip${sold ? " soldout" : ""}" style="${tierStyle(o)}" data-slot="${s.id}" data-id="${o.id}" aria-pressed="${o.id === traits[s.id]}" ${disabled ? "disabled" : ""} title="${esc(title)}">
+      ${chipExtra(s.id, o)}<span>${esc(o.label)}</span>${leftText ? `<span class="left">${leftText}</span>` : ""}</button>`;
+  }).join("");
+  const clear = s.id === "perk2" && traits.perk2 ? ` <button class="chip" data-slot="perk2" data-id="">None</button>` : "";
+  return `<div class="slot">${head}<div class="chips">${chips}${clear}</div></div>`;
+}
+
+function renderBuilder() {
+  const cat = Object.fromEntries(catalog().map((s) => [s.id, s]));
+  for (const [g, ids] of Object.entries(GROUPS)) $(`g-${g}`).innerHTML = ids.map((id) => renderSlot(cat[id])).join("");
+}
+
+function renderPreview() {
+  try {
+    character = forgeCharacter({ traits, style });
+  } catch (err) {
+    character = null;
+    setStatus("bad", esc(err.message));
+    return;
+  }
+  const c = character;
+  $("portrait").innerHTML = portraitSVG(c);
+  $("portrait").setAttribute("aria-label", `Portrait of ${c.name}, ${c.rarityLabel} ${c.archetypeLabel}`);
+  $("rarity").textContent = `${c.rarityLabel} ${c.archetypeLabel}`;
+  $("rarity").style.setProperty("--rar", `var(--${c.rarity})`);
+  $("score").textContent = `Rarity score ${c.rarityScore}`;
+  $("pin").style.left = `calc(${Math.min(100, (c.rarityScore / MAX_SCORE) * 100)}% - 2px)`;
+  $("stats").innerHTML = [["HP", c.hp], ["MIG", c.stats.might], ["FIN", c.stats.finesse], ["CUN", c.stats.cunning], ["GRT", c.stats.grit]]
+    .map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+  $("traits").innerHTML = `${c.perks.map((p) => `<div class="trait"><b>${esc(p.name)}.</b> ${esc(p.text)}</div>`).join("")}
+    <div class="trait flaw"><b>${esc(c.flaw.name)}.</b> ${esc(c.flaw.text)}</div>
+    <div class="trait"><b>Relic:</b> ${esc(c.relic)} · <b>DNA</b> <code>${esc(c.dna)}</code></div>`;
+}
+
+function setStatus(kind, html) {
+  $("status").className = `status ${kind}`;
+  $("status").innerHTML = html;
+  $("reserve").disabled = kind !== "ok" || !server;
+}
+
+function update() {
+  normalize();
+  renderBuilder();
+  renderPreview();
+  saveHash();
+  if (character) {
+    scheduleCheck();
+    renderForge();
+    scheduleForged();
+  }
+}
+
+// ---------- availability ----------
+
+function scheduleCheck() {
+  clearTimeout(checkTimer);
+  const local = soldOutTraits(character, server?.counts ?? {});
+  if (!server) {
+    setStatus("", `Preview mode: the mint registry isn't reachable from this page, so uniqueness can't be checked. Supply caps shown are the maximums.`);
+    return;
+  }
+  if (local.length) return setStatus("bad", `Sold out: ${local.map((x) => `${esc(x.label)} (${esc(x.slotLabel)})`).join(", ")}. Pick another.`);
+  setStatus("", "Checking this look is still unclaimed…");
+  const seq = ++checkSeq;
+  checkTimer = setTimeout(async () => {
+    try {
+      const r = await fetch("/api/nft/check", { method: "POST", body: JSON.stringify({ traits, style }) }).then((x) => x.json());
+      if (seq !== checkSeq) return;
+      if (r.error) return setStatus("bad", esc(r.error));
+      if (!r.unique) return setStatus("bad", `This exact look is already token #${r.takenBy.tokenId}, ${esc(r.takenBy.name)}. Change any visual trait to make it yours.`);
+      if (r.soldOut.length) return setStatus("bad", `Sold out: ${r.soldOut.map((x) => esc(x.label)).join(", ")}.`);
+      if (r.minted >= r.maxSupply) return setStatus("bad", "The collection is fully minted.");
+      setStatus("ok", `✓ One of a kind. ${r.maxSupply - r.minted} of ${r.maxSupply} outlaws left to claim.${forged?.complete && !forged.dryRun ? " Its 3D model will be attached." : ""}`);
+    } catch {
+      if (seq === checkSeq) setStatus("bad", "Couldn't reach the mint registry.");
+    }
+  }, 250);
+}
+
+async function loadSupply() {
+  try {
+    const res = await fetch("/api/nft/supply");
+    if (!res.ok) throw new Error();
+    server = await res.json();
+  } catch {
+    server = null;
+  }
+}
+
+async function loadMinted() {
+  if (!server) return;
+  const list = await fetch("/api/nft/tokens").then((r) => r.json()).catch(() => []);
+  $("minted-panel").hidden = !list.length;
+  $("minted").innerHTML = list.slice().reverse().slice(0, 24).map((t) =>
+    `<a href="/creator?token=${t.tokenId}"><img src="/nft/images/${t.tokenId}.svg" alt="" loading="lazy"><span>${t.model ? '<b class="has3d" title="Has a 3D model">3D</b>' : ""}#${t.tokenId} ${esc(t.name)}<br><small style="color:var(--${t.rarity})">${esc(t.archetypeLabel)}</small></span></a>`).join("");
+}
+
+// ---------- 3D forge (Tripo pipeline on the local server) ----------
+
+const STEP_LABELS = { generate: "Mesh + PBR", rigcheck: "Rig check", rig: "Auto-rig", animate: "Animate" };
+const fileUrl = (dir, f) => `/output/${dir}/${f}`;
+const sameModel = (a, b) => a && b && a.prompt === b.prompt && a.seed === b.seed;
+let forgedTimer, forgedSeq = 0, confirmTimer;
+
+// Looks up whether this exact model (look + style + rarity) was already forged.
+function scheduleForged() {
+  if (!meta) return;
+  clearTimeout(forgedTimer);
+  const seq = ++forgedSeq;
+  forgedTimer = setTimeout(async () => {
+    const r = await fetch("/api/nft/forged", { method: "POST", body: JSON.stringify({ traits, style }) }).then((x) => x.json()).catch(() => null);
+    if (seq !== forgedSeq) return;
+    forged = r && !r.error ? r : null;
+    renderForge();
+    const model = forgedModel();
+    if (model) loadModel(model.url, model.label);
+    else if (!sameModel(job?.character, character)) clearModel();
+  }, 250);
+}
+
+// Best model on disk for the current build: the animated GLB, else the rigged or raw mesh.
+function forgedModel() {
+  if (!forged) return null;
+  const f = forged.files;
+  const pick = f.animate?.model ? ["animate", "Rigged & animated"] : f.rig?.model ? ["rig", "Rigged, not animated yet"] : f.generate?.model ? ["generate", "Textured mesh, not rigged yet"] : null;
+  if (!pick) return null;
+  return { url: fileUrl(forged.dir, f[pick[0]].model), label: `${pick[1]}${forged.dryRun ? " · dry-run sample" : ""}` };
+}
+
+function renderForge() {
+  $("forge-panel").hidden = !meta;
+  if (!meta || !character) return;
+  const btn = $("forge");
+  delete btn.dataset.armed; // a pending "click again" never carries over to another build
+  clearTimeout(confirmTimer);
+  const mine = sameModel(job?.character, character);
+  const real = forged && !forged.dryRun;
+  let note, kind = "";
+  if (job && !mine) note = `Forging ${esc(job.character.name)}. One forge at a time.`;
+  else if (job) note = "Forging… keep this tab open. Finished steps are saved, so nothing is paid twice.";
+  else if (real && forged.complete) [note, kind] = [`✓ Forged${forged.credits ? ` for ${forged.credits} credits` : ""}. This look, style and rarity always gives this model, so it never needs forging again.`, "ok"];
+  else if (real && forged.error) [note, kind] = [`Last forge stopped: ${esc(forged.error)} Resuming reuses the finished steps.`, "bad"];
+  else if (real) note = "A forge was started but didn't finish. Resuming reuses the finished steps.";
+  else if (forged?.complete) note = "Dry run done: the pipeline works end to end, but that's Tripo's sample model, not this outlaw. Add TRIPO_API_KEY to .env to forge it for real.";
+  else note = meta.dryRun
+    ? "Dry run: no TRIPO_API_KEY in .env, so this runs the whole pipeline with a sample model and spends nothing."
+    : "Generates a PBR-textured mesh, auto-rigs it and bakes idle, walk, run and 2 archetype moves. Spends Tripo credits.";
+  $("forge-note").className = `forge-note ${kind}`;
+  $("forge-note").innerHTML = note;
+  btn.disabled = !!job || (real && forged.complete);
+  btn.textContent = mine ? "Forging…" : real && forged.complete ? "Forged ✓" : real || (forged?.dryRun && !forged.complete) ? "Resume forge" : meta.dryRun ? "Forge in 3D (dry run)" : "Forge in 3D";
+  $("texq").disabled = !!job;
+  $("tab-tick").innerHTML = real && forged.complete ? '<span class="tick">✓</span>' : "";
+
+  const links = [];
+  if (forged?.complete) {
+    for (const [step, files] of Object.entries(forged.files)) if (files.model) links.push(`<a href="${fileUrl(forged.dir, files.model)}" download>${STEP_LABELS[step] ?? step} GLB</a>`);
+    links.push(`<a href="/game?dir=${encodeURIComponent(forged.dir)}">Play this outlaw ▶</a>`);
+  }
+  links.push(`<a href="/?build=${encodeURIComponent(JSON.stringify({ traits, style }))}">More options in the 3D Forge →</a>`);
+  $("forge-links").innerHTML = links.join("");
+}
+
+async function loadBalance() {
+  if (!meta) return;
+  const b = await fetch("/api/balance").then((r) => r.json()).catch(() => null);
+  $("balance").textContent = !b || b.error ? "" : b.dryRun ? "Dry run · no key" : `${Math.floor(b.balance).toLocaleString()} credits${b.frozen ? ` · ${b.frozen} held` : ""}`;
+}
+
+function startForge() {
+  const btn = $("forge");
+  // Real forges spend credits: ask for a second click.
+  if (!meta.dryRun && !btn.dataset.armed) {
+    btn.dataset.armed = "1";
+    btn.textContent = "Click again to spend credits";
+    clearTimeout(confirmTimer);
+    confirmTimer = setTimeout(renderForge, 4000);
+    return;
+  }
+  delete btn.dataset.armed;
+  clearTimeout(confirmTimer);
+  forge();
+}
+
+async function forge() {
+  const c = character;
+  const res = await fetch("/api/forge", { method: "POST", body: JSON.stringify({ roll: { traits, style }, options: { textureQuality: $("texq").value } }) });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) return toast(body.error ?? `Couldn't start the forge (HTTP ${res.status})`);
+  job = { id: body.jobId, character: c };
+  const sample = body.dryRun ? " · dry-run sample" : "";
+  $("steps").hidden = false;
+  $("steps").innerHTML = Object.keys(STEP_LABELS).map((s) => `<li data-step="${s}"><span>${STEP_LABELS[s]}</span><div class="bar"><i></i></div><span class="st">waiting</span></li>`).join("");
+  renderForge();
+  showTab("3d");
+  const shown = new Set();
+  while (job) {
+    await new Promise((r) => setTimeout(r, 1500));
+    const j = await fetch(`/api/jobs/${job.id}`).then((r) => r.json()).catch(() => null);
+    if (!j) continue;
+    for (const e of j.events) {
+      const li = $("steps").querySelector(`[data-step="${e.step}"]`);
+      if (li) {
+        li.className = e.status;
+        li.querySelector(".bar i").style.width = `${e.status === "running" ? e.progress ?? 0 : 100}%`;
+        li.querySelector(".st").textContent = e.status === "running" ? `${e.progress ?? 0}%` : e.status;
+      }
+      // Show each stage as it lands: textured mesh first, then the animated result.
+      if (e.status === "success" && e.files?.model && !shown.has(e.step) && sameModel(c, character)) {
+        shown.add(e.step);
+        loadModel(fileUrl(j.dir, e.files.model), (e.step === "animate" ? "Rigged & animated" : "Textured mesh · rigging next") + sample);
+      }
+      if (e.step === "error") toast(e.message);
+    }
+    if (j.status === "running") continue;
+    job = null;
+    if (j.status === "success") {
+      const credits = j.events.find((e) => e.step === "done")?.totalCredits;
+      toast(j.tokenId ? `Forged and attached to token #${j.tokenId}.` : `Forged${credits ? ` for ${credits} credits` : ""}.`);
+    }
+    await Promise.all([loadBalance(), loadMinted()]);
+    scheduleForged();
+    scheduleCheck();
+  }
+}
+
+// ---------- 3D viewer (three.js, loaded on first use) ----------
+
+let viewer;
+async function ensureViewer() {
+  if (viewer) return viewer;
+  viewer = (async () => {
+    const THREE = await import("three");
+    const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+    const { OrbitControls } = await import("three/addons/controls/OrbitControls.js");
+    const { RoomEnvironment } = await import("three/addons/environments/RoomEnvironment.js");
+    const canvas = $("canvas");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.shadowMap.enabled = true;
+    const scene = new THREE.Scene();
+    scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+    const camera = new THREE.PerspectiveCamera(32, 1, 0.01, 100);
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 1.2;
+    controls.addEventListener("start", () => (controls.autoRotate = false));
+    const sun = new THREE.DirectionalLight(0xfff1d6, 1.6);
+    sun.position.set(2, 4, 3);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    scene.add(sun, new THREE.HemisphereLight(0x9fc27a, 0x2a2014, 0.5));
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(1.2, 48), new THREE.ShadowMaterial({ opacity: 0.35 }));
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+    const clock = new THREE.Clock();
+    const v = { THREE, scene, camera, controls, loader: new GLTFLoader(), model: null, mixer: null, action: null };
+    const resize = () => {
+      const { clientWidth: w, clientHeight: h } = canvas;
+      if (!w || !h) return;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    };
+    new ResizeObserver(resize).observe(canvas);
+    renderer.setAnimationLoop(() => {
+      const dt = clock.getDelta();
+      if ($("stage").hidden) return;
+      v.mixer?.update(dt);
+      controls.update();
+      renderer.render(scene, camera);
+    });
+    return v;
+  })();
+  return viewer;
+}
+
+function clearModel() {
+  shownModel = null;
+  $("stage-empty").hidden = false;
+  $("stage-empty").innerHTML = "Not forged yet.<br>Forge this outlaw to see it rigged and animated.";
+  $("stage-badge").hidden = true;
+  $("clips").innerHTML = "";
+  viewer?.then((v) => { if (v.model) v.scene.remove(v.model); v.model = v.mixer = v.action = null; });
+}
+
+async function loadModel(url, label) {
+  if (url === shownModel) return;
+  shownModel = url;
+  $("stage-empty").hidden = false;
+  $("stage-empty").textContent = "Loading model…";
+  const v = await ensureViewer();
+  v.loader.load(url, (gltf) => {
+    if (shownModel !== url) return;
+    if (v.model) v.scene.remove(v.model);
+    const model = (v.model = gltf.scene);
+    model.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    // Normalise to ~1.8 m tall, feet on the ground.
+    const box = new v.THREE.Box3().setFromObject(model);
+    model.scale.setScalar(1.8 / (box.getSize(new v.THREE.Vector3()).y || 1));
+    box.setFromObject(model);
+    const c = box.getCenter(new v.THREE.Vector3());
+    model.position.sub(new v.THREE.Vector3(c.x, box.min.y, c.z));
+    v.scene.add(model);
+    v.controls.target.set(0, 0.92, 0);
+    v.camera.position.set(0, 1.25, 4.4);
+
+    v.mixer = gltf.animations.length ? new v.THREE.AnimationMixer(model) : null;
+    v.action = null;
+    $("clips").innerHTML = "";
+    gltf.animations.forEach((clip, i) => {
+      const b = document.createElement("button");
+      b.textContent = clip.name.replace(/^.*[:|]/, "").replace(/preset_?|biped_?/gi, "").replace(/_/g, " ").trim() || clip.name;
+      b.onclick = () => {
+        const next = v.mixer.clipAction(clip);
+        if (v.action && v.action !== next) v.action.fadeOut(0.25);
+        next.reset().fadeIn(0.25).play();
+        v.action = next;
+        for (const x of $("clips").children) x.classList.toggle("on", x === b);
+      };
+      $("clips").append(b);
+      if (i === 0 || /idle/i.test(clip.name)) b.click();
+    });
+    // Tripo exports can face +X; three.js expects +Z.
+    const turn = document.createElement("button");
+    turn.className = "turn";
+    turn.textContent = "↻ 90°";
+    turn.title = "Rotate model";
+    turn.onclick = () => (model.rotation.y += Math.PI / 2);
+    $("clips").append(turn);
+    $("stage-badge").textContent = label;
+    $("stage-badge").hidden = false;
+    $("stage-empty").hidden = true;
+  }, undefined, (err) => {
+    if (shownModel === url) $("stage-empty").textContent = `Couldn't load the model: ${err.message ?? err}`;
+  });
+}
+
+function showTab(which) {
+  const is3d = which === "3d";
+  $("tab-portrait").setAttribute("aria-selected", String(!is3d));
+  $("tab-3d").setAttribute("aria-selected", String(is3d));
+  $("portrait").hidden = is3d;
+  $("stage").hidden = !is3d;
+  if (is3d) ensureViewer();
+}
+
+// ---------- actions ----------
+
+function toast(msg) {
+  $("toast").textContent = msg;
+  $("toast").hidden = false;
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => ($("toast").hidden = true), 2600);
+}
+
+function download(name, blob) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const fileBase = () => `${character.name}-${character.dna}`.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+async function downloadPng() {
+  const svg = new Blob([portraitSVG(character)], { type: "image/svg+xml" });
+  const img = new Image();
+  img.src = URL.createObjectURL(svg);
+  await img.decode();
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 2000;
+  canvas.getContext("2d").drawImage(img, 0, 0, 2000, 2000);
+  URL.revokeObjectURL(img.src);
+  canvas.toBlob((b) => download(`${fileBase()}.png`, b), "image/png");
+}
+
+async function reserve() {
+  $("reserve").disabled = true;
+  setStatus("", "Reserving…");
+  const res = await fetch("/api/nft/reserve", { method: "POST", body: JSON.stringify({ traits, style }) });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    setStatus("bad", esc(body.error ?? `Reservation failed (HTTP ${res.status})`));
+    await loadSupply();
+    return;
+  }
+  await loadSupply();
+  renderBuilder();
+  setStatus("ok", `Reserved as <b>#${body.tokenId}</b>. <a href="${esc(body.metadataUrl)}" target="_blank" rel="noopener">metadata</a> · <a href="${esc(body.imageUrl)}" target="_blank" rel="noopener">image</a>` +
+    (body.modelUrl ? ` · <a href="${esc(body.modelUrl)}" target="_blank" rel="noopener">3D model</a>` : meta ? ". Forge it in 3D and the model is attached to the token." : ""));
+  $("reserve").disabled = true;
+  loadMinted();
+}
+
+// The whole build lives in the URL hash, so a link reproduces it exactly.
+function saveHash() {
+  const data = btoa(unescape(encodeURIComponent(JSON.stringify({ t: traits, s: style })))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  history.replaceState(null, "", `${location.pathname}#b=${data}`);
+}
+function readHash() {
+  const m = location.hash.match(/b=([\w-]+)/);
+  if (!m) return null;
+  try {
+    return JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, "+").replace(/_/g, "/")))));
+  } catch {
+    return null;
+  }
+}
+
+// ---------- wiring ----------
+
+document.addEventListener("click", (e) => {
+  const lock = e.target.closest("[data-lock]");
+  if (lock) {
+    const id = lock.dataset.lock;
+    locks.has(id) ? locks.delete(id) : locks.add(id);
+    renderBuilder();
+    return;
+  }
+  const pick = e.target.closest("[data-slot]");
+  if (pick && !pick.disabled) {
+    if (pick.dataset.id === "") delete traits[pick.dataset.slot];
+    else traits[pick.dataset.slot] = pick.dataset.id;
+    update();
+  }
+});
+$("roll").onclick = rollUnlocked;
+$("unlock").onclick = () => { locks.clear(); renderBuilder(); };
+$("style").onchange = (e) => { style = e.target.value; update(); };
+$("reserve").onclick = reserve;
+$("png").onclick = () => character && downloadPng();
+$("json").onclick = () => character && download(`${fileBase()}.json`, new Blob([JSON.stringify(tokenMetadata(character), null, 2)], { type: "application/json" }));
+$("share").onclick = async () => { await navigator.clipboard.writeText(location.href).catch(() => {}); toast("Link copied. It rebuilds this exact outlaw."); };
+$("forge").onclick = () => character && startForge();
+$("tab-portrait").onclick = () => showTab("portrait");
+$("tab-3d").onclick = () => showTab("3d");
+
+for (const s of Object.keys(STYLES)) $("style").add(new Option(s[0].toUpperCase() + s.slice(1), s));
+$("tiers").innerHTML = `<span class="muted">Trait tiers:</span>` + Object.entries(TIERS).map(([id, t]) =>
+  `<span><i style="background:var(--${id})"></i>${t.label}${t.points ? ` +${t.points}` : ""}${COLLECTION.caps[id] ? ` · ${COLLECTION.caps[id]} each` : ""}</span>`).join("") +
+  `<span>Supply ${COLLECTION.maxSupply.toLocaleString()} · no two outlaws look alike</span>`;
+
+await loadSupply();
+meta = await fetch("/api/meta").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+loadBalance();
+const params = new URLSearchParams(location.search);
+const token = params.get("token");
+let fromHash = readHash();
+if (params.get("build")) {
+  // Coming back from the 3D Forge: ?build={"traits":{...},"style":"..."}
+  try {
+    const b = JSON.parse(params.get("build"));
+    fromHash = { t: b.traits, s: b.style };
+  } catch { /* ignore a malformed link */ }
+  history.replaceState(null, "", location.pathname);
+}
+if (token) {
+  const meta = await fetch(`/nft/metadata/${encodeURIComponent(token)}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  if (meta?.properties?.traits) {
+    traits = { ...meta.properties.traits };
+    style = meta.properties.style ?? style;
+  }
+} else if (fromHash?.t) {
+  traits = fromHash.t;
+  style = STYLES[fromHash.s] ? fromHash.s : style;
+}
+if (!traits.archetype) {
+  traits = { archetype: "outlaw_archer", sex: "man" };
+  normalize();
+  rollUnlocked();
+} else {
+  update();
+}
+$("style").value = style;
+loadMinted();
+</script>
+</body>
+</html>

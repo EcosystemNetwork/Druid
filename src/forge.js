@@ -59,6 +59,39 @@ export const STYLES = {
   lowpoly: "low-poly stylized game character, flat-shaded faceted look, simple chunky shapes",
 };
 
+// ---------- trait tiers (build-your-own NFT collection) ----------
+
+// Every trait option has a tier. In build mode a character's rarity comes from the
+// summed points of its traits, and rare/legendary options have a capped mint supply.
+export const TIERS = {
+  common: { label: "Common", points: 0, weight: 6 },
+  uncommon: { label: "Uncommon", points: 1, weight: 3 },
+  rare: { label: "Rare", points: 3, weight: 1.5 },
+  legendary: { label: "Legendary", points: 6, weight: 0.5 },
+};
+const RARITY_THRESHOLDS = [["legendary", 18], ["rare", 9], ["uncommon", 4], ["common", 0]];
+
+export const COLLECTION = {
+  name: "Outlaws of Sherwood",
+  symbol: "OUTLAW",
+  chain: "Robinhood Chain",
+  maxSupply: 5000,
+  // Mint cap per option, by tier. An option can override it with its own `cap`.
+  caps: { rare: 200, legendary: 30 },
+};
+
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const capital = (s) => s[0].toUpperCase() + s.slice(1);
+
+// `text` goes into the Tripo prompt, `label` is the short NFT attribute value.
+// `creator: true` options exist only in the build-your-own creator, so random rolls
+// (and every seed rolled before they existed) are unchanged.
+const opt = (text, tier = "common", extra = {}) => {
+  const label = extra.label ?? capital(text);
+  return { id: slug(label), text, label, tier, ...extra };
+};
+const rollable = (arr) => arr.filter((o) => !o.creator);
+
 // Weapons are always stowed (slung, sheathed, holstered) so the hands stay
 // free. Props fused to the hands are the most common cause of bad auto-rigs.
 export const ARCHETYPES = {
@@ -67,14 +100,15 @@ export const ARCHETYPES = {
     role: "Ranged skirmisher",
     base: { might: 4, finesse: 8, cunning: 6, grit: 4 },
     hp: 18,
-    body: ["lean", "wiry", "athletic"],
+    body: [opt("lean"), opt("wiry"), opt("athletic")],
     outfit: [
-      "hooded Lincoln-green tunic, leather jerkin, brown hose and soft leather boots",
-      "green hooded cloak over a quilted gambeson, leather bracers, tall boots",
-      "forest-green jerkin with laced collar, feathered cap, belted tunic and knee boots",
+      opt("hooded Lincoln-green tunic, leather jerkin, brown hose and soft leather boots", "common", { label: "Lincoln Green Hood" }),
+      opt("green hooded cloak over a quilted gambeson, leather bracers, tall boots", "uncommon", { label: "Hooded Cloak & Gambeson" }),
+      opt("forest-green jerkin with laced collar, feathered cap, belted tunic and knee boots", "rare", { label: "Feathered Cap & Jerkin" }),
+      opt("hooded Lincoln-green tunic embroidered with golden oak leaves, silver-buckled leather jerkin, fine green hose and tall doeskin boots", "legendary", { label: "Hood of Locksley", creator: true }),
     ],
-    gear: ["longbow slung across the back", "quiver of grey-goose arrows on the back"],
-    sidearm: ["hunting knife on the belt", "short sword sheathed at the hip"],
+    gear: [opt("longbow slung across the back", "common", { label: "Slung Longbow" }), opt("quiver of grey-goose arrows on the back", "uncommon", { label: "Grey-Goose Quiver" })],
+    sidearm: [opt("hunting knife on the belt", "common", { label: "Hunting Knife" }), opt("short sword sheathed at the hip", "uncommon", { label: "Short Sword" })],
     animations: ["preset:biped:shoot", "preset:biped:jump"],
   },
   merry_brawler: {
@@ -82,13 +116,14 @@ export const ARCHETYPES = {
     role: "Bruiser tank",
     base: { might: 8, finesse: 4, cunning: 3, grit: 8 },
     hp: 28,
-    body: ["huge", "broad-shouldered", "towering"],
+    body: [opt("huge"), opt("broad-shouldered"), opt("towering")],
     outfit: [
-      "sleeveless leather vest, rope belt, rolled linen shirt, heavy boots",
-      "patched russet tunic, wide leather belt, wrapped forearms, sturdy boots",
+      opt("sleeveless leather vest, rope belt, rolled linen shirt, heavy boots", "common", { label: "Leather Vest" }),
+      opt("patched russet tunic, wide leather belt, wrapped forearms, sturdy boots", "uncommon", { label: "Patched Russet Tunic" }),
+      opt("sleeveless studded leather vest, prize-fighter's brass championship belt, wrapped forearms, heavy hobnailed boots", "legendary", { label: "Champion's Belt", creator: true }),
     ],
-    gear: ["long oak quarterstaff strapped diagonally across the back"],
-    sidearm: ["leather waterskin on the belt", "iron-banded cudgel hanging at the hip"],
+    gear: [opt("long oak quarterstaff strapped diagonally across the back", "common", { label: "Oak Quarterstaff" })],
+    sidearm: [opt("leather waterskin on the belt", "common", { label: "Waterskin" }), opt("iron-banded cudgel hanging at the hip", "uncommon", { label: "Iron-Banded Cudgel" })],
     animations: ["preset:biped:box_01", "preset:biped:front_kick_01"],
   },
   friar: {
@@ -96,13 +131,14 @@ export const ARCHETYPES = {
     role: "Healer / support",
     base: { might: 6, finesse: 3, cunning: 5, grit: 7 },
     hp: 24,
-    body: ["stout", "round-bellied", "sturdy"],
+    body: [opt("stout"), opt("round-bellied"), opt("sturdy")],
     outfit: [
-      "brown wool monk's habit with rope cincture and sandals",
-      "hooded grey friar's robe, wooden prayer beads, leather satchel, sandals",
+      opt("brown wool monk's habit with rope cincture and sandals", "common", { label: "Brown Habit" }),
+      opt("hooded grey friar's robe, wooden prayer beads, leather satchel, sandals", "uncommon", { label: "Grey Friar's Robe" }),
+      opt("rich purple-and-gold abbot's vestments worn over a patched habit, rope cincture, sandals", "legendary", { label: "Abbot's Stolen Vestments", creator: true }),
     ],
-    gear: ["small wooden cask strapped to the back", "herb pouches on the belt"],
-    sidearm: ["heavy iron mace hanging at the hip", "wooden cross pendant on the chest"],
+    gear: [opt("small wooden cask strapped to the back", "common", { label: "Ale Cask" }), opt("herb pouches on the belt", "uncommon", { label: "Herb Pouches" })],
+    sidearm: [opt("heavy iron mace hanging at the hip", "common", { label: "Iron Mace" }), opt("wooden cross pendant on the chest", "uncommon", { label: "Wooden Cross" })],
     animations: ["preset:biped:cast_a_spell", "preset:biped:chop"],
   },
   sherwood_witch: {
@@ -110,13 +146,14 @@ export const ARCHETYPES = {
     role: "Hexer / caster",
     base: { might: 2, finesse: 5, cunning: 9, grit: 4 },
     hp: 16,
-    body: ["slender", "gaunt", "willowy"],
+    body: [opt("slender"), opt("gaunt"), opt("willowy")],
     outfit: [
-      "layered moss-green and black robes, bone charms, bark-woven bodice, bare feet wrapped in cloth",
-      "hooded tattered cloak with antler clasp, herb-stained dress, leather boots",
+      opt("layered moss-green and black robes, bone charms, bark-woven bodice, bare feet wrapped in cloth", "common", { label: "Moss Robes & Bone Charms" }),
+      opt("hooded tattered cloak with antler clasp, herb-stained dress, leather boots", "uncommon", { label: "Antler-Clasp Cloak" }),
+      opt("living moss-and-ivy mantle, antler crown circlet, bark-woven bodice, cloth-wrapped feet", "legendary", { label: "Mantle of the Green Lady", creator: true }),
     ],
-    gear: ["gnarled twig staff strapped across the back", "bundles of dried herbs on the belt"],
-    sidearm: ["small ritual sickle at the hip", "crow-feather fetish on the shoulder"],
+    gear: [opt("gnarled twig staff strapped across the back", "common", { label: "Gnarled Twig Staff" }), opt("bundles of dried herbs on the belt", "uncommon", { label: "Dried Herb Bundles" })],
+    sidearm: [opt("small ritual sickle at the hip", "common", { label: "Ritual Sickle" }), opt("crow-feather fetish on the shoulder", "uncommon", { label: "Crow-Feather Fetish" })],
     animations: ["preset:biped:cast_a_spell", "preset:biped:look_around"],
   },
   poacher: {
@@ -124,13 +161,14 @@ export const ARCHETYPES = {
     role: "Trapper / assassin",
     base: { might: 5, finesse: 7, cunning: 8, grit: 3 },
     hp: 17,
-    body: ["lean", "hunched", "scrappy"],
+    body: [opt("lean"), opt("hunched"), opt("scrappy")],
     outfit: [
-      "deerskin hood and mantle, patched leather breeches, fur-wrapped boots",
-      "mud-brown hooded tunic, snare cords around the waist, wrapped shins",
+      opt("deerskin hood and mantle, patched leather breeches, fur-wrapped boots", "common", { label: "Deerskin Mantle" }),
+      opt("mud-brown hooded tunic, snare cords around the waist, wrapped shins", "uncommon", { label: "Snare-Corded Tunic" }),
+      opt("white stag-hide hood and mantle with small antlers, patched leather breeches, fur-wrapped boots", "legendary", { label: "Pelt of the White Hart", creator: true }),
     ],
-    gear: ["short crossbow slung on the back", "coil of snare wire on the back"],
-    sidearm: ["skinning knife on the belt", "pair of throwing knives on a bandolier"],
+    gear: [opt("short crossbow slung on the back", "common", { label: "Short Crossbow" }), opt("coil of snare wire on the back", "uncommon", { label: "Snare Wire Coil" })],
+    sidearm: [opt("skinning knife on the belt", "common", { label: "Skinning Knife" }), opt("pair of throwing knives on a bandolier", "uncommon", { label: "Throwing Knives" })],
     animations: ["preset:biped:shoot", "preset:biped:dig"],
   },
   disgraced_knight: {
@@ -138,13 +176,14 @@ export const ARCHETYPES = {
     role: "Heavy melee",
     base: { might: 8, finesse: 5, cunning: 3, grit: 7 },
     hp: 26,
-    body: ["broad", "battle-scarred", "tall"],
+    body: [opt("broad"), opt("battle-scarred"), opt("tall")],
     outfit: [
-      "dented chainmail hauberk under a torn crusader tabard, leather gloves, iron greaves",
-      "battered plate pauldrons over chainmail, defaced heraldic surcoat, steel sabatons",
+      opt("dented chainmail hauberk under a torn crusader tabard, leather gloves, iron greaves", "common", { label: "Torn Crusader Tabard" }),
+      opt("battered plate pauldrons over chainmail, defaced heraldic surcoat, steel sabatons", "uncommon", { label: "Defaced Surcoat & Plate" }),
+      opt("blackened chainmail hauberk, torn white surcoat with a burnt red cross, steel gauntlets and sabatons", "legendary", { label: "Templar's Shame", creator: true }),
     ],
-    gear: ["round wooden shield on the back", "kite shield with a scratched-out crest on the back"],
-    sidearm: ["longsword sheathed at the hip", "arming sword sheathed at the hip"],
+    gear: [opt("round wooden shield on the back", "common", { label: "Round Shield" }), opt("kite shield with a scratched-out crest on the back", "uncommon", { label: "Scratched Kite Shield" })],
+    sidearm: [opt("longsword sheathed at the hip", "common", { label: "Longsword" }), opt("arming sword sheathed at the hip", "uncommon", { label: "Arming Sword" })],
     animations: ["preset:biped:slash", "preset:biped:hit_to_body_01"],
   },
   sheriffs_deserter: {
@@ -152,13 +191,14 @@ export const ARCHETYPES = {
     role: "Soldier / all-rounder",
     base: { might: 6, finesse: 6, cunning: 5, grit: 5 },
     hp: 21,
-    body: ["average build", "stocky", "weathered"],
+    body: [opt("average build"), opt("stocky"), opt("weathered")],
     outfit: [
-      "faded Nottingham red gambeson, kettle helm tied to the belt, leather gloves, boots",
-      "padded tabard with torn-off sheriff's badge, open-faced iron cap, worn boots",
+      opt("faded Nottingham red gambeson, kettle helm tied to the belt, leather gloves, boots", "common", { label: "Nottingham Gambeson" }),
+      opt("padded tabard with torn-off sheriff's badge, open-faced iron cap, worn boots", "uncommon", { label: "Badgeless Tabard & Iron Cap" }),
+      opt("crimson-and-gold Nottingham captain's brigandine with a torn sheriff's badge, leather gloves, riding boots", "legendary", { label: "Captain's Brigandine", creator: true }),
     ],
-    gear: ["crossbow slung on the back", "rolled wanted poster tucked in the belt"],
-    sidearm: ["falchion sheathed at the hip", "billhook hanging at the hip"],
+    gear: [opt("crossbow slung on the back", "common", { label: "Slung Crossbow" }), opt("rolled wanted poster tucked in the belt", "uncommon", { label: "Wanted Poster" })],
+    sidearm: [opt("falchion sheathed at the hip", "common", { label: "Falchion" }), opt("billhook hanging at the hip", "uncommon", { label: "Billhook" })],
     animations: ["preset:biped:slash", "preset:biped:shoot"],
   },
   minstrel: {
@@ -166,34 +206,84 @@ export const ARCHETYPES = {
     role: "Bard / buffer",
     base: { might: 3, finesse: 7, cunning: 7, grit: 4 },
     hp: 17,
-    body: ["slim", "nimble", "lanky"],
+    body: [opt("slim"), opt("nimble"), opt("lanky")],
     outfit: [
-      "parti-coloured doublet in green and gold, feathered cap, pointed shoes",
-      "slashed-sleeve tunic, bright scarf, short cape, soft boots",
+      opt("parti-coloured doublet in green and gold, feathered cap, pointed shoes", "common", { label: "Parti-Coloured Doublet" }),
+      opt("slashed-sleeve tunic, bright scarf, short cape, soft boots", "uncommon", { label: "Slashed-Sleeve Tunic" }),
+      opt("gold-and-crimson royal minstrel's doublet with small bells on the sleeves, feathered cap, pointed shoes", "legendary", { label: "King's Own Minstrel", creator: true }),
     ],
-    gear: ["wooden lute slung on the back"],
-    sidearm: ["rapier-like slim sword at the hip", "purse of coins on the belt"],
+    gear: [opt("wooden lute slung on the back", "common", { label: "Wooden Lute" })],
+    sidearm: [opt("rapier-like slim sword at the hip", "common", { label: "Slim Sword" }), opt("purse of coins on the belt", "uncommon", { label: "Purse of Coins" })],
     animations: ["preset:biped:sing_01", "preset:biped:dance_01"],
   },
 };
 
+// `color` and `style` are only used by the 2D portrait (src/portrait.js).
 const FACES = {
-  age: ["young", "young adult", "seasoned", "middle-aged", "grizzled old"],
+  age: [opt("young"), opt("young adult"), opt("seasoned"), opt("middle-aged"), opt("grizzled old", "uncommon")],
   hair: [
-    "shaggy auburn hair", "close-cropped black hair", "long braided blonde hair", "wild grey hair",
-    "tied-back chestnut hair", "shaved head", "curly red hair", "matted dark hair under the hood",
+    opt("shaggy auburn hair", "common", { color: "#7a3a1a", style: "shaggy" }),
+    opt("close-cropped black hair", "common", { color: "#1a1410", style: "cropped" }),
+    opt("long braided blonde hair", "uncommon", { color: "#d8b060", style: "braids" }),
+    opt("wild grey hair", "uncommon", { color: "#a3a19c", style: "wild" }),
+    opt("tied-back chestnut hair", "common", { color: "#5a3218", style: "tied" }),
+    opt("shaved head", "uncommon", { color: null, style: "shaved" }),
+    opt("curly red hair", "rare", { color: "#a83a1a", style: "curly" }),
+    opt("matted dark hair under the hood", "common", { color: "#2a1a10", style: "matted", label: "Matted dark hair" }),
+    opt("raven-black hair with a single white streak", "rare", { color: "#121014", streak: "#e8e4dc", style: "cropped", creator: true }),
+    opt("copper hair in warrior braids", "rare", { color: "#b5541e", style: "braids", creator: true }),
+    opt("long silver-white hair woven with oak leaves", "legendary", { color: "#e2e2e8", style: "oakleaf", label: "Silver hair woven with oak leaves", creator: true }),
   ],
-  facial: ["short beard", "stubble", "clean-shaven", "thick moustache", "braided beard", "freckles", "a scar across one cheek", "weathered skin"],
+  facial: [
+    opt("short beard", "common", { mark: "beard" }),
+    opt("stubble", "common", { mark: "stubble" }),
+    opt("clean-shaven", "common", { mark: "none" }),
+    opt("thick moustache", "common", { mark: "moustache" }),
+    opt("braided beard", "uncommon", { mark: "braidbeard" }),
+    opt("freckles", "common", { mark: "freckles" }),
+    opt("a scar across one cheek", "uncommon", { mark: "scar", label: "Cheek scar" }),
+    opt("weathered skin", "common", { mark: "weathered" }),
+    opt("a black leather eyepatch", "rare", { mark: "eyepatch", label: "Eyepatch", creator: true }),
+    opt("swirling blue woad tattoos across the brow", "rare", { mark: "woad", label: "Woad tattoos", creator: true }),
+    opt("eyes that glint faintly forest-green", "legendary", { mark: "feyeyes", label: "Fey-touched eyes", creator: true }),
+  ],
   sex: ["man", "woman"],
 };
+// Facial hair options a woman can't roll (and can't pick in the creator).
+const MALE_ONLY = /beard|moustache|stubble|shaven/;
 
 const PALETTES = [
-  "Lincoln green, brown leather and undyed linen",
-  "moss green, charcoal and rust",
-  "forest green, ochre and dark walnut",
-  "faded red, iron grey and tan leather",
-  "russet, olive and bone white",
-  "deep teal, black leather and brass",
+  opt("Lincoln green, brown leather and undyed linen", "common", { label: "Lincoln Green", colors: ["#3f6e2a", "#6a4a2c", "#d8cfb0"] }),
+  opt("moss green, charcoal and rust", "uncommon", { label: "Moss & Rust", colors: ["#5a6b32", "#2e2e2c", "#9a4a24"] }),
+  opt("forest green, ochre and dark walnut", "common", { label: "Forest & Ochre", colors: ["#2f5a2a", "#b08a3a", "#4a3020"] }),
+  opt("faded red, iron grey and tan leather", "uncommon", { label: "Faded Red & Iron", colors: ["#8a3a30", "#6a6a70", "#a07850"] }),
+  opt("russet, olive and bone white", "common", { label: "Russet & Bone", colors: ["#8a4a28", "#6a7a3a", "#e8e0cc"] }),
+  opt("deep teal, black leather and brass", "rare", { label: "Teal & Brass", colors: ["#2a5a5a", "#1e1e1e", "#c09a40"] }),
+  opt("ash grey, black and blood red", "rare", { label: "Ash & Blood", colors: ["#6e6e6a", "#8a1e1e", "#262626"], creator: true }),
+  opt("autumn amber, oxblood and dark leather", "rare", { label: "Autumn Amber", colors: ["#c0802a", "#5a1a1a", "#3a2a1a"], creator: true }),
+  opt("royal blue and gold of King Richard", "legendary", { label: "King Richard's Colours", colors: ["#1f3a7a", "#d4a52a", "#ece4cc"], creator: true }),
+];
+
+// Build mode only (random rolls keep their old prompts). The game and the portrait
+// fall back to a seed-derived skin tone when a character has none.
+const SKINS = [
+  opt("fair skin", "common", { label: "Fair", color: "#f0c8a0" }),
+  opt("ruddy skin", "common", { label: "Ruddy", color: "#d9a77c" }),
+  opt("olive skin", "common", { label: "Olive", color: "#c08a60" }),
+  opt("brown skin", "common", { label: "Brown", color: "#8a5a38" }),
+  opt("deep brown skin", "common", { label: "Deep Brown", color: "#6a4028" }),
+];
+
+// Portrait backdrop only; never part of the Tripo prompt.
+const BACKGROUNDS = [
+  opt("Sherwood Glade", "common", { scene: "glade", colors: ["#2c4a22", "#7da04e"] }),
+  opt("Misty Fen", "common", { scene: "fen", colors: ["#3a4a44", "#9aaaa0"] }),
+  opt("Outlaw Camp", "uncommon", { scene: "camp", colors: ["#2a1e14", "#c0602a"] }),
+  opt("Nottingham Walls", "uncommon", { scene: "walls", colors: ["#3a3632", "#8a8070"] }),
+  opt("The Major Oak", "rare", { scene: "oak", colors: ["#1e3018", "#d8b860"] }),
+  opt("Moonlit Clearing", "rare", { scene: "moon", colors: ["#101828", "#5a6a9a"] }),
+  opt("Gallows Hill", "rare", { scene: "gallows", colors: ["#4a2a2a", "#c08a6a"] }),
+  opt("The Golden Arrow Tourney", "legendary", { scene: "tourney", colors: ["#5a1a1a", "#e0b040"] }),
 ];
 
 const NAMES = {
@@ -202,9 +292,10 @@ const NAMES = {
     woman: ["Marian", "Edith", "Maud", "Joan", "Agnes", "Isolde", "Alys", "Cecily", "Wynn", "Hild", "Rosamund", "Elspeth", "Mabel"],
   },
   epithet: [
-    "of Locksley", "Scarlet", "the Miller's Son", "a-Dale", "Greenleaf", "the Fletcher", "of Barnsdale",
-    "Two-Arrows", "the Unhanged", "Oakheart", "Crowfoot", "of Nottingham", "the Quiet", "Ashwood", "Longstride",
-  ],
+    ["of Locksley", "legendary"], ["Scarlet", "rare"], ["the Miller's Son"], ["a-Dale", "rare"], ["Greenleaf"],
+    ["the Fletcher"], ["of Barnsdale", "uncommon"], ["Two-Arrows", "uncommon"], ["the Unhanged", "rare"], ["Oakheart", "uncommon"],
+    ["Crowfoot"], ["of Nottingham"], ["the Quiet"], ["Ashwood"], ["Longstride"],
+  ].map(([text, tier]) => opt(text, tier, { label: text })),
 };
 
 const PERKS = [
@@ -230,10 +321,11 @@ const FLAWS = [
   { name: "Hunted by the Abbot", text: "Holy sites are hostile." },
 ];
 
+// Relic names are keys into the game's RELIC_EFFECTS, so they can't be renamed.
 const RELICS = [
-  "Silver Arrow of the Tourney", "Marian's Ribbon", "Sheriff's Signet (stolen)", "Pouch of King's Pennies",
-  "Hunting Horn of Sherwood", "Tuck's Blessed Flask", "Map of Nottingham Sewers", "Oak Leaf Brooch",
-  "Broken Ransom Chain", "Lucky Grey-Goose Fletching",
+  opt("Silver Arrow of the Tourney", "legendary"), opt("Marian's Ribbon", "rare"), opt("Sheriff's Signet (stolen)", "rare", { label: "Sheriff's Signet" }),
+  opt("Pouch of King's Pennies"), opt("Hunting Horn of Sherwood", "uncommon"), opt("Tuck's Blessed Flask", "uncommon"),
+  opt("Map of Nottingham Sewers", "uncommon"), opt("Oak Leaf Brooch"), opt("Broken Ransom Chain"), opt("Lucky Grey-Goose Fletching"),
 ];
 
 // Every character gets these; archetypes add their 2 signature moves on top.
@@ -243,64 +335,249 @@ const RELICS = [
 export const CORE_ANIMATIONS = ["preset:biped:idle", "preset:biped:walk", "preset:biped:run"];
 export const MAX_RETARGET_ANIMATIONS = 5;
 
+// ---------- trait catalog (the creator's slots) ----------
+
+const named = (list) => list.map((x) => ({ id: slug(x.name), label: x.name, tier: "common", ...x }));
+const nameOpts = (list) => list.map((n) => ({ id: slug(n), label: n, text: n, tier: "common" }));
+
+// Slots in creator order. `visual` slots make up a character's DNA: no two minted
+// characters may share all of them. `scored` slots add tier points to its rarity.
+export const SLOTS = [
+  { id: "archetype", label: "Archetype", visual: true, options: () => Object.entries(ARCHETYPES).map(([id, a]) => ({ id, label: a.label, text: a.role, tier: "common" })) },
+  { id: "sex", label: "Body", visual: true, options: () => [{ id: "man", label: "Man", tier: "common" }, { id: "woman", label: "Woman", tier: "common" }] },
+  { id: "skin", label: "Skin", visual: true, options: () => SKINS },
+  { id: "age", label: "Age", visual: true, scored: true, options: () => FACES.age },
+  { id: "build", perArchetype: true, label: "Build", visual: true, options: (a) => ARCHETYPES[a].body },
+  { id: "hair", label: "Hair", visual: true, scored: true, options: () => FACES.hair },
+  { id: "face", label: "Face", visual: true, scored: true, options: (a, sex) => (sex === "woman" ? FACES.facial.filter((f) => !MALE_ONLY.test(f.text)) : FACES.facial) },
+  { id: "outfit", perArchetype: true, label: "Outfit", visual: true, scored: true, options: (a) => ARCHETYPES[a].outfit },
+  { id: "gear", perArchetype: true, label: "Gear", visual: true, scored: true, options: (a) => ARCHETYPES[a].gear },
+  { id: "sidearm", perArchetype: true, label: "Sidearm", visual: true, scored: true, options: (a) => ARCHETYPES[a].sidearm },
+  { id: "palette", label: "Colours", visual: true, scored: true, options: () => PALETTES },
+  { id: "background", label: "Background", visual: true, scored: true, options: () => BACKGROUNDS },
+  { id: "first", label: "Name", options: (a, sex) => nameOpts(NAMES.first[sex] ?? NAMES.first.man) },
+  { id: "epithet", label: "Epithet", scored: true, options: () => NAMES.epithet },
+  { id: "relic", label: "Relic", scored: true, options: () => RELICS },
+  { id: "perk", label: "Perk", options: () => named(PERKS) },
+  { id: "perk2", label: "Second perk", legendaryOnly: true, options: () => named(PERKS) },
+  { id: "flaw", label: "Flaw", options: () => named(FLAWS) },
+];
+const SLOT = Object.fromEntries(SLOTS.map((s) => [s.id, s]));
+
+// Options for every slot, given the archetype and sex they depend on.
+export function traitCatalog(archetype = Object.keys(ARCHETYPES)[0], sex = "man") {
+  return SLOTS.map((s) => ({ ...s, options: s.options(archetype, sex) }));
+}
+
+export const optionCap = (o) => o.cap ?? COLLECTION.caps[o.tier] ?? null;
+
+// Mint counts are kept per option; archetype-specific options are counted per archetype.
+export const supplyKey = (slotId, archetype, id) => (SLOT[slotId]?.perArchetype ? `${slotId}:${archetype}:${id}` : `${slotId}:${id}`);
+
+// Capped options a build-mode character uses that have no supply left, given mint counts by supplyKey.
+export function soldOutTraits(character, counts) {
+  const out = [];
+  for (const s of SLOTS) {
+    const o = traitOption(character, s.id);
+    const cap = o && optionCap(o);
+    if (cap == null) continue;
+    const used = counts[supplyKey(s.id, character.archetype, o.id)] ?? 0;
+    if (used >= cap) out.push({ slot: s.id, slotLabel: s.label, id: o.id, label: o.label, cap });
+  }
+  return out;
+}
+
+export function rarityFromScore(score) {
+  return RARITY_THRESHOLDS.find(([, min]) => score >= min)[0];
+}
+
 // ---------- forge ----------
 
 export function randomSeed() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export function forgeCharacter({ seed = randomSeed(), archetype, rarity, style = "stylized", sex } = {}) {
+export class TraitError extends Error {
+  constructor(errors) {
+    super(errors.join(" "));
+    this.errors = errors;
+  }
+}
+
+// Random roll from a seed (the original mode, used by the game's strangers and the CLI),
+// or build mode when `traits` is given: { archetype, sex, skin, ..., perk, perk2?, flaw } as option ids.
+export function forgeCharacter({ seed = randomSeed(), archetype, rarity, style = "stylized", sex, traits } = {}) {
+  if (traits) return buildCharacter(traits, style);
   const rng = makeRng(seed);
 
+  // The order of rng draws below is what keeps old seeds reproducible. Don't reorder.
   const archId = archetype && ARCHETYPES[archetype] ? archetype : rng.pick(Object.keys(ARCHETYPES));
   const arch = ARCHETYPES[archId];
   const rar = RARITIES.find((r) => r.id === rarity) ?? rng.weighted(RARITIES);
   const who = sex && FACES.sex.includes(sex) ? sex : rng.pick(FACES.sex);
+  // Pinned options skip their rng draw, so a re-forge must pin exactly the same ones.
+  const pins = {};
+  if (archId === archetype) pins.archetype = archId;
+  if (rar.id === rarity) pins.rarity = rar.id;
+  if (who === sex) pins.sex = who;
 
-  const look = {
+  const chosen = {
+    archetype: archId,
     sex: who,
-    age: rng.pick(FACES.age),
-    build: rng.pick(arch.body),
-    hair: rng.pick(FACES.hair),
-    face: who === "man" ? rng.pick(FACES.facial) : rng.pick(FACES.facial.filter((f) => !/beard|moustache|stubble|shaven/.test(f))),
-    outfit: rng.pick(arch.outfit),
-    gear: rng.pick(arch.gear),
-    sidearm: rng.pick(arch.sidearm),
-    palette: rng.pick(PALETTES),
+    age: rng.pick(rollable(FACES.age)),
+    build: rng.pick(rollable(arch.body)),
+    hair: rng.pick(rollable(FACES.hair)),
+    face: rng.pick(rollable(FACES.facial).filter((f) => who === "man" || !MALE_ONLY.test(f.text))),
+    outfit: rng.pick(rollable(arch.outfit)),
+    gear: rng.pick(rollable(arch.gear)),
+    sidearm: rng.pick(rollable(arch.sidearm)),
+    palette: rng.pick(rollable(PALETTES)),
   };
+  const stats = rollStats(rng, arch, rar);
+  const first = rng.pick(NAMES.first[who]);
+  const epithet = rng.pick(NAMES.epithet);
+  const perks = rng.pickN(PERKS, rar.id === "legendary" ? 2 : 1);
+  const flaw = rng.pick(FLAWS);
+  const relic = rng.pick(RELICS);
+  return finish({ rng, seed: String(seed), style, arch, rar, chosen, stats, first, epithet, perks, flaw, relic, mode: "roll", pins });
+}
 
+function rollStats(rng, arch, rar) {
   const stats = {};
   for (const [k, v] of Object.entries(arch.base)) {
     stats[k] = Math.max(1, v + rng.int(-1, 2) + Math.floor(rar.statBonus / 2) + (rng.float() < rar.statBonus / 10 ? 1 : 0));
   }
-  const hp = arch.hp + stats.grit + rar.statBonus;
+  return stats;
+}
 
-  const name = `${rng.pick(NAMES.first[who])} ${rng.pick(NAMES.epithet)}`;
-  const perks = rng.pickN(PERKS, rar.id === "legendary" ? 2 : 1);
-  const flaw = rng.pick(FLAWS);
-  const relic = rng.pick(RELICS);
+// Checks every trait against the catalog. Returns the option objects, or throws a TraitError.
+export function resolveTraits(traits) {
+  const errors = [];
+  const t = traits ?? {};
+  const archetype = ARCHETYPES[t.archetype] ? t.archetype : null;
+  if (!archetype) errors.push("Pick an archetype.");
+  const sex = FACES.sex.includes(t.sex) ? t.sex : null;
+  if (!sex) errors.push("Pick a body.");
+  if (errors.length) throw new TraitError(errors);
+
+  const chosen = { archetype, sex };
+  const missing = [];
+  for (const s of SLOTS) {
+    if (s.id === "archetype" || s.id === "sex" || s.id === "perk2") continue;
+    const o = s.options(archetype, sex).find((x) => x.id === t[s.id]);
+    if (o) chosen[s.id] = o;
+    else if (t[s.id]) errors.push(`"${t[s.id]}" isn't a valid ${s.label.toLowerCase()} for this character.`);
+    else missing.push(s.label);
+  }
+  if (missing.length) errors.push(`Still to pick: ${missing.join(", ")}.`);
+  if (errors.length) throw new TraitError(errors);
+
+  const score = SLOTS.filter((s) => s.scored).reduce((n, s) => n + TIERS[chosen[s.id].tier].points, 0);
+  const rarity = rarityFromScore(score);
+  if (t.perk2) {
+    const p2 = SLOT.perk2.options().find((x) => x.id === t.perk2);
+    if (rarity !== "legendary") errors.push("A second perk is only for Legendary characters.");
+    else if (!p2) errors.push(`"${t.perk2}" isn't a valid perk.`);
+    else if (p2.id === chosen.perk.id) errors.push("Pick two different perks.");
+    else chosen.perk2 = p2;
+  }
+  if (errors.length) throw new TraitError(errors);
+  return { chosen, score, rarity };
+}
+
+// The visual traits, in a fixed order: two characters with the same key look the same.
+export function visualKey(traits) {
+  return SLOTS.filter((s) => s.visual).map((s) => `${s.id}=${traits[s.id] ?? ""}`).join("|");
+}
+
+// Short stable id for a look. Also the build-mode seed, so the Tripo mesh and the
+// stat rolls are fixed per look and can't be rerolled.
+export function traitDna(traits) {
+  const key = visualKey(traits);
+  return hashSeed(key).toString(16).padStart(8, "0") + hashSeed(key + "#dna").toString(16).padStart(8, "0");
+}
+
+function buildCharacter(traits, style) {
+  const { chosen, score, rarity } = resolveTraits(traits);
+  const ids = Object.fromEntries(Object.entries(chosen).map(([k, v]) => [k, typeof v === "string" ? v : v.id]));
+  const dna = traitDna(ids);
+  const rng = makeRng("dna-" + dna);
+  const arch = ARCHETYPES[chosen.archetype];
+  const rar = RARITIES.find((r) => r.id === rarity);
+  const stats = rollStats(rng, arch, rar);
+  const perks = [chosen.perk, chosen.perk2].filter(Boolean).map(({ name, text }) => ({ name, text }));
+  const { name, text } = chosen.flaw;
+  const c = finish({
+    rng, seed: "dna-" + dna, style, arch, rar, chosen, stats,
+    first: chosen.first.text, epithet: chosen.epithet, perks, flaw: { name, text }, relic: chosen.relic, mode: "build",
+  });
+  c.dna = dna;
+  c.rarityScore = score;
+  return c;
+}
+
+function finish({ rng, seed, style, arch, rar, chosen, stats, first, epithet, perks, flaw, relic, mode, pins }) {
+  stats ??= rollStats(rng, arch, rar);
+  const look = {
+    sex: chosen.sex,
+    age: chosen.age.text,
+    build: chosen.build.text,
+    hair: chosen.hair.text,
+    face: chosen.face.text,
+    outfit: chosen.outfit.text,
+    gear: chosen.gear.text,
+    sidearm: chosen.sidearm.text,
+    palette: chosen.palette.text,
+  };
+  if (chosen.skin) look.skin = chosen.skin.text;
+  if (chosen.background) look.background = chosen.background.label;
+
+  const traits = {};
+  for (const s of SLOTS) {
+    const v = chosen[s.id];
+    if (v) traits[s.id] = typeof v === "string" ? v : v.id;
+  }
+  if (mode === "roll") {
+    traits.first = slug(first);
+    traits.epithet = epithet.id;
+    traits.relic = relic.id;
+    traits.perk = slug(perks[0].name);
+    if (perks[1]) traits.perk2 = slug(perks[1].name);
+    traits.flaw = slug(flaw.name);
+  }
 
   const character = {
-    seed: String(seed),
-    name,
-    archetype: archId,
+    seed,
+    mode,
+    name: `${first} ${epithet.text}`,
+    archetype: chosen.archetype,
     archetypeLabel: arch.label,
     role: arch.role,
     rarity: rar.id,
     rarityLabel: rar.label,
     style,
     look,
+    traits,
     stats,
-    hp,
+    hp: arch.hp + stats.grit + rar.statBonus,
     gold: rng.int(5, 25) + rar.statBonus * 5,
     perks,
     flaw,
-    relic,
+    relic: relic.text,
     animations: [...CORE_ANIMATIONS, ...arch.animations],
   };
+  if (pins) character.pins = pins;
   character.prompt = buildPrompt(character, rar);
   character.negativePrompt = NEGATIVE_PROMPT;
   return character;
+}
+
+// Rebuilds a character sheet from what identifies it, so a client-supplied sheet can't be tampered with.
+export function reforge(c) {
+  if (c?.mode === "build") return forgeCharacter({ traits: c.traits, style: c.style });
+  if (c?.pins) return forgeCharacter({ seed: c.seed, style: c.style, ...c.pins });
+  // Sheets saved before `pins` existed: best effort, as before.
+  return forgeCharacter({ seed: c.seed, archetype: c.archetype, rarity: c.rarity, style: c.style, sex: c.look?.sex });
 }
 
 // Kept under Tripo's 255-char negative prompt limit.
@@ -312,7 +589,7 @@ function buildPrompt(c, rar) {
   const prompt = [
     `Full body ${STYLES[c.style] ?? STYLES.stylized}.`,
     `A ${l.age} ${l.build} ${l.sex}, a medieval Sherwood Forest ${c.archetypeLabel.toLowerCase()} from the Robin Hood legend,`,
-    `${l.hair}, ${l.face}.`,
+    `${l.hair}, ${l.skin ? `${l.skin}, ` : ""}${l.face}.`,
     `Wearing ${l.outfit}, colour palette of ${l.palette}, ${rar.flair}.`,
     `Equipment: ${l.gear}, ${l.sidearm}.`,
     "Standing in a neutral A-pose, arms held away from the body, legs slightly apart, empty open hands, facing forward,",
@@ -322,7 +599,47 @@ function buildPrompt(c, rar) {
 }
 
 export function slugify(c) {
+  // A build's mesh depends only on its look (the seed), style and rarity (both in the prompt),
+  // never its name. Keying the folder on those reuses a paid forge and never mixes up two styles.
+  if (c.mode === "build") return slug(`${c.archetype}-${c.seed}-${c.style}-${c.rarity}`);
   return `${c.name}-${c.seed}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+// ---------- NFT metadata (ERC-721 / OpenSea metadata standard) ----------
+
+// Option object for a trait id, for labels and portrait colours.
+export function traitOption(character, slotId) {
+  const s = SLOT[slotId];
+  const id = character.traits?.[slotId];
+  if (!s || id == null) return null;
+  return s.options(character.archetype, character.look.sex).find((o) => o.id === id) ?? null;
+}
+
+export function tokenMetadata(c, { tokenId, image, animationUrl, externalUrl } = {}) {
+  const attributes = [];
+  for (const s of SLOTS) {
+    if (s.id === "first" || s.id === "perk2") continue;
+    const o = traitOption(c, s.id);
+    if (o) attributes.push({ trait_type: s.label, value: o.label });
+  }
+  if (c.perks[1]) attributes.push({ trait_type: "Second perk", value: c.perks[1].name });
+  attributes.push({ trait_type: "Rarity", value: c.rarityLabel });
+  if (c.rarityScore != null) attributes.push({ display_type: "number", trait_type: "Rarity Score", value: c.rarityScore });
+  attributes.push({ display_type: "number", trait_type: "HP", value: c.hp });
+  for (const [k, v] of Object.entries(c.stats)) attributes.push({ display_type: "number", trait_type: capital(k), value: v, max_value: 20 });
+
+  const meta = {
+    name: tokenId != null ? `${c.name} #${tokenId}` : c.name,
+    description:
+      `${c.rarityLabel} ${c.archetypeLabel} (${c.role}) of ${COLLECTION.name}. ` +
+      `${c.perks.map((p) => `${p.name}: ${p.text}`).join(" ")} Flaw, ${c.flaw.name}: ${c.flaw.text} Carries the ${c.relic}.`,
+    attributes,
+    properties: { seed: c.seed, dna: c.dna ?? null, style: c.style, archetype: c.archetype, traits: c.traits },
+  };
+  if (image) meta.image = image;
+  if (animationUrl) meta.animation_url = animationUrl;
+  if (externalUrl) meta.external_url = externalUrl;
+  return meta;
 }
 
 // ---------- Tripo pipeline payloads (shared by the Node pipeline and the browser forge) ----------

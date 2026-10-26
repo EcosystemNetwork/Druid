@@ -42,6 +42,8 @@
   .card { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: linear-gradient(180deg, #252d1e, #1d2418); position: relative; overflow: hidden; }
   .card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--rar, var(--common)); }
   .card h2 { margin: 0; font-size: 20px; }
+  .card .thumb { float: right; width: 96px; height: 96px; margin: 0 0 8px 10px; border-radius: 8px; overflow: hidden; }
+  .card .thumb svg { width: 100%; height: 100%; display: block; }
   .card .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
   .rar { color: var(--rar); font-weight: 600; }
   .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 12px 0; text-align: center; }
@@ -89,6 +91,7 @@
   <h1>Sherwood Forge</h1>
   <span class="tag">Robin Hood roguelike character generator · Tripo3D</span>
   <span id="mode" class="pill">…</span>
+  <a class="play" href="/creator" style="background:var(--green)">Outlaw Creator</a>
   <a class="play" href="/game">Play the game ▶</a>
 </header>
 
@@ -144,6 +147,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { portraitSVG } from "/lib/portrait.js";
 
 const $ = (id) => document.getElementById(id);
 const STEP_LABELS = { generate: "Mesh + PBR", rigcheck: "Rig check", rig: "Auto-rig", animate: "Animate", fbx: "FBX export" };
@@ -233,8 +237,9 @@ function renderCard(c) {
   card.style.setProperty("--rar", `var(--${c.rarity})`);
   const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
   card.innerHTML = `
+    <div class="thumb">${portraitSVG(c)}</div>
     <h2>${esc(c.name)}</h2>
-    <div class="sub"><span class="rar">${esc(c.rarityLabel)}</span> ${esc(c.archetypeLabel)} · ${esc(c.role)} · seed <code>${esc(c.seed)}</code></div>
+    <div class="sub"><span class="rar">${esc(c.rarityLabel)}</span> ${esc(c.archetypeLabel)} · ${esc(c.role)} · ${c.mode === "build" ? `<a href="/creator?build=${encodeURIComponent(JSON.stringify({ traits: c.traits, style: c.style }))}">edit in the Creator</a>` : `seed <code>${esc(c.seed)}</code>`}</div>
     <div class="stats">
       ${[["HP", c.hp], ["MIG", c.stats.might], ["FIN", c.stats.finesse], ["CUN", c.stats.cunning], ["GRT", c.stats.grit]]
         .map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("")}
@@ -267,8 +272,11 @@ async function forge() {
   if (!current) return;
   $("forge").disabled = true;
   const body = {
-    // Pin the seed and archetype that produced the card being shown.
-    roll: { seed: current.seed, archetype: current.archetype, rarity: current.rarity, sex: current.look.sex, style: current.style },
+    // Exactly what produced the card being shown: the creator's traits, or the seed plus the options
+    // that were pinned when it was rolled (pinning skips rng draws, so pinning more changes the character).
+    roll: current.mode === "build" ? { traits: current.traits, style: current.style }
+      : current.pins ? { seed: current.seed, style: current.style, ...current.pins }
+      : { seed: current.seed, archetype: current.archetype, rarity: current.rarity, sex: current.look.sex, style: current.style },
     options: {
       textureQuality: $("texq").value, geometryQuality: $("geoq").value,
       faceLimit: Number($("faces").value), fbx: $("fbx").value === "1",
@@ -349,6 +357,23 @@ $("mode").classList.toggle("live", !meta.dryRun);
 $("roll").onclick = roll;
 $("forge").onclick = forge;
 loadGallery();
+
+// Handed over from the Outlaw Creator: /?build={"traits":{...},"style":"stylized"}
+const build = new URLSearchParams(location.search).get("build");
+if (build) {
+  const res = await fetch("/api/roll", { method: "POST", body: build });
+  const body = await res.json();
+  if (res.ok) {
+    current = body;
+    renderCard(current);
+    $("style").value = current.style;
+    $("forge").disabled = false;
+  } else {
+    $("job").hidden = false;
+    $("jobmsg").textContent = body.error;
+    $("jobmsg").className = "msg err";
+  }
+}
 </script>
 </body>
 </html>

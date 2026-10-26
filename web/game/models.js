@@ -373,9 +373,14 @@ const PALETTE_COLORS = [
   [/faded red/i, 0x8a3a30, 0x6a6a70],
   [/russet/i, 0x8a4a28, 0x6a7a3a],
   [/teal/i, 0x2a5a5a, 0xb08a3a],
+  [/ash grey/i, 0x6e6e6a, 0x8a1e1e],
+  [/amber/i, 0xc0802a, 0x5a1a1a],
+  [/royal blue/i, 0x1f3a7a, 0xd4a52a],
 ];
-const HAIR = [[/auburn/, 0x7a3a1a], [/black/, 0x1a1410], [/blonde/, 0xd8b060], [/grey/, 0x9a9a9a], [/chestnut/, 0x5a3218], [/red/, 0xa83a1a], [/dark/, 0x2a1a10]];
+const HAIR = [[/auburn/, 0x7a3a1a], [/silver/, 0xe2e2e8], [/copper/, 0xb5541e], [/black/, 0x1a1410], [/blonde/, 0xd8b060], [/grey/, 0x9a9a9a], [/chestnut/, 0x5a3218], [/red/, 0xa83a1a], [/dark/, 0x2a1a10]];
 const SKINS = [0xf0c8a0, 0xd9a77c, 0xc08a60, 0x8a5a38, 0x6a4028];
+// Creator-built heroes pick a skin tone (forge.js SKINS, same order); rolled ones get one from their seed.
+const SKIN_NAMES = [/^fair/, /^ruddy/, /^olive/, /^brown/, /^deep brown/];
 
 export function heroLook(c) {
   const [, main, accent] = PALETTE_COLORS.find(([re]) => re.test(c.look.palette)) ?? PALETTE_COLORS[0];
@@ -383,6 +388,8 @@ export function heroLook(c) {
   const hair = /shaved/.test(hairStr) ? null : (HAIR.find(([re]) => re.test(hairStr))?.[1] ?? 0x4a3020);
   let h = 0;
   for (const ch of c.seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const skinIdx = SKIN_NAMES.findIndex((re) => re.test(c.look.skin ?? ""));
+  if (skinIdx >= 0) h = skinIdx;
   const look = {
     tunic: main, accent, pants: 0x4a3a28, skin: SKINS[h % SKINS.length], hair: hair ?? SKINS[h % SKINS.length],
     beard: /beard|moustache/.test(c.look.face), hat: hair ? "hair" : "bald",

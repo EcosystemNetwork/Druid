@@ -8,7 +8,7 @@ import { FX, updateProjectiles, clearProjectiles, updatePickups, clearPickups, s
 import { spawnEnemy, updateEnemies, clearEnemies, buildWaves } from "./enemies.js";
 import { createPlayer, updatePlayer, tryDodge, tryAbility, addFollower, placeFollowers, clearSnares, baseDamage, critChance, abilityCd, dodgeCd } from "./player.js";
 import { makeHero, loadGLBRig } from "./models.js";
-import { listHeroes, deleteHero } from "./heroes.js";
+import { listHeroes, deleteHero, listGallery, publishHero, publishPending } from "./heroes.js";
 import { forgeInBrowser, getBalance, savedProgress, STEP_LABELS } from "./tripo-browser.js";
 import { KITS, UPGRADES, RARITY_WEIGHT, RARITY_PRICE, RELIC_EFFECTS, FINAL_FLOOR, SHOP_AFTER } from "./content.js";
 import { initAudio, sfx, startMusic, stopMusic, toggleMute, isMuted } from "./audio.js";
@@ -136,7 +136,8 @@ function select(sel, btn) {
   if (sel.local)
     $("unband").onclick = async (e) => {
       e.preventDefault();
-      if (!confirm(`Remove ${sel.character.name} and their 3D model from this browser?`)) return;
+      const where = sel.published ? " They stay in the shared gallery." : "";
+      if (!confirm(`Remove ${sel.character.name} and their 3D model from this browser?${where}`)) return;
       await deleteHero(sel.character.seed);
       selected = null;
       $("preview").innerHTML = '<p class="muted">Pick a hero from the band or roll a stranger.</p>';
@@ -181,7 +182,7 @@ async function loadBand() {
     } catch {}
     serverBand ??= false;
   }
-  const local = await listHeroes();
+  const [local, gallery] = await Promise.all([listHeroes(), listGallery()]);
   band.innerHTML = "";
   const want = new URLSearchParams(location.search).get("dir");
   const add = (c, thumb, sub, sel, preselect) => {
@@ -196,7 +197,15 @@ async function loadBand() {
     if (!heroUrls.has(h.seed)) heroUrls.set(h.seed, { url: URL.createObjectURL(h.glb), thumb: h.thumb ? URL.createObjectURL(h.thumb) : null });
     const { url, thumb } = heroUrls.get(h.seed);
     const dir = `local:${h.seed}`;
-    add(h.character, thumb, "3D model · this browser", { character: h.character, local: true, glb: { url, dir, yaw: savedYaw(dir, -Math.PI / 2) } }, false);
+    const sub = h.published ? "3D model · shared" : "3D model · this browser";
+    add(h.character, thumb, sub, { character: h.character, local: true, published: !!h.published, glb: { url, dir, yaw: savedYaw(dir, -Math.PI / 2) } }, false);
+  }
+  // Gallery heroes this browser already holds play from the local copy above.
+  const localSeeds = new Set(local.map((h) => h.seed));
+  for (const g of gallery) {
+    if (localSeeds.has(g.seed)) continue;
+    const dir = `gallery:${g.seed}`;
+    add(g.character, g.thumb, "3D model · gallery", { character: g.character, glb: { url: g.model, dir, yaw: savedYaw(dir, -Math.PI / 2) } }, false);
   }
   for (const item of serverBand || []) {
     const c = item.character;
@@ -276,6 +285,7 @@ $("tbal").onclick = async () => {
     const b = await getBalance(key);
     storeKey(key);
     forgeMsg(`Key works. Balance: ${b.balance} credits${b.frozen ? ` (${b.frozen} reserved)` : ""}.`, "ok");
+    if (await publishPending(key)) loadBand();
   } catch (err) {
     forgeMsg(err.message + (err.suggestion ? `. ${err.suggestion}` : ""), "err");
   }
@@ -303,9 +313,18 @@ async function startForge() {
       },
     });
     forging = null;
+    forgeMsg("Sharing to the gallery…");
+    let shared = "";
+    try {
+      await publishHero(key, hero);
+      shared = " and the shared gallery";
+    } catch (err) {
+      shared = ` (saved in this browser only: ${err.message}. It'll be shared next time your key is used)`;
+    }
+    publishPending(key).catch(() => {});
     await loadBand();
     const btn = [...document.querySelectorAll(".band button")].find((b) => b.textContent.includes(c.name));
-    forgeMsg(`Done · ${hero.credits} credits. ${c.name} joined the band.`, "ok");
+    forgeMsg(`Done · ${hero.credits} credits. ${c.name} joined the band${shared}.`, "ok");
     $("fstart").disabled = false;
     $("fstart").textContent = `Play as ${c.name}`;
     $("fstart").onclick = () => {

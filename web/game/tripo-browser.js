@@ -128,7 +128,9 @@ export async function forgeInBrowser({ key, character, options = {}, onEvent = (
   onEvent({ step: "download", status: "success" });
 
   const credits = Object.values(state.steps).reduce((s, x) => s + (x.credits ?? 0), 0);
-  const hero = { seed: character.seed, character, glb, thumb, credits, created: Date.now() };
+  // Task ids let the server re-download the files from Tripo when publishing to the gallery.
+  const tasks = { generate: gen.taskId, animate: anim.taskId };
+  const hero = { seed: character.seed, character, glb, thumb, credits, tasks, published: false, created: Date.now() };
   await saveHero(hero);
   try {
     localStorage.removeItem(stateKey(character.seed));

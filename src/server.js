@@ -7,11 +7,13 @@ import { createReadStream } from "node:fs";
 import { Readable } from "node:stream";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { ARCHETYPES, RARITIES, STYLES, forgeCharacter } from "./forge.js";
+import { ARCHETYPES, RARITIES, STYLES, TraitError, forgeCharacter, slugify } from "./forge.js";
 import { DEFAULT_OPTIONS, runPipeline } from "./pipeline.js";
 import { TripoClient } from "./tripo.js";
 import { loadEnv } from "./env.js";
 import { apiTarget, fileTarget, validAuth } from "./tripo-proxy.js";
+import { handleGallery } from "./gallery.js";
+import { ReserveError, createRegistry } from "./collection.js";
 
 loadEnv();
 
@@ -20,6 +22,9 @@ const ROOT = process.cwd();
 const OUTPUT = path.join(ROOT, "output");
 const WEB = path.join(ROOT, "web");
 const ENV_DRY_RUN = process.env.TRIPO_DRY_RUN === "1" || !process.env.TRIPO_API_KEY;
+const GALLERY = { url: process.env.SUPABASE_URL?.replace(/\/$/, ""), key: process.env.SUPABASE_SERVICE_ROLE_KEY };
+const NFT_DIR = path.join(OUTPUT, "nft");
+const registry = createRegistry(NFT_DIR);
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -31,7 +36,10 @@ const MIME = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".webp": "image/webp",
+  ".svg": "image/svg+xml",
 };
+
+const nftBaseUrl = (req) => (process.env.NFT_BASE_URL ?? `http://${req.headers.host}`).replace(/\/$/, "");
 
 const jobs = new Map(); // jobId -> { id, character, events, status, dir }
 
@@ -89,8 +97,28 @@ async function listCharacters() {
   return out.sort((a, b) => b.mtime - a.mtime);
 }
 
-function startJob({ character, options, dryRun }) {
-  const job = { id: randomUUID(), character, events: [], status: "running", dir: null };
+// The forge of this exact character, if one was started: build-mode folders are keyed on
+// what decides the mesh (see slugify), so this is a direct lookup, not a scan.
+async function findForge(character, { dryRun = false } = {}) {
+  const dir = path.posix.join(dryRun ? "_dryrun" : "", slugify(character));
+  try {
+    const state = JSON.parse(await readFile(path.join(OUTPUT, dir, "state.json"), "utf8"));
+    if (state.character?.prompt !== character.prompt) return null;
+    const files = Object.fromEntries(Object.entries(state.steps).map(([k, v]) => [k, v.files ?? {}]));
+    return { dir, dryRun, complete: !!state.complete, error: state.error ?? null, files, credits: state.totalCredits ?? null };
+  } catch {
+    return null;
+  }
+}
+
+// Absolute path of a real (not dry-run) finished animated GLB for this character.
+async function forgedGlb(character) {
+  const f = await findForge(character);
+  return f?.complete && f.files.animate?.model ? path.join(OUTPUT, f.dir, f.files.animate.model) : null;
+}
+
+function startJob({ character, options, dryRun, baseUrl }) {
+  const job = { id: randomUUID(), character, dryRun, events: [], status: "running", dir: null };
   jobs.set(job.id, job);
   const client = new TripoClient({
     apiKey: process.env.TRIPO_API_KEY,
@@ -109,7 +137,12 @@ function startJob({ character, options, dryRun }) {
       else job.events.push({ ...e, t: Date.now() });
     },
   })
-    .then(() => (job.status = "success"))
+    .then(async () => {
+      // A reserved token for this look gets its 3D model as soon as the forge finishes.
+      const glb = dryRun ? null : await forgedGlb(character);
+      if (glb) job.tokenId = await registry.attachModel(character, glb, baseUrl).catch(() => null);
+      job.status = "success";
+    })
     .catch(() => (job.status = "failed"));
   return job;
 }
@@ -144,6 +177,14 @@ const server = createServer(async (req, res) => {
     if (url.pathname.startsWith("/api/tripo/") || url.pathname === "/api/tripo-file") {
       return await proxyTripo(req, res, url);
     }
+    // Mirrors netlify/edge-functions/heroes.js.
+    if (url.pathname === "/api/heroes") {
+      const body = req.method === "POST" ? JSON.stringify(await readBody(req)) : undefined;
+      const headers = { authorization: req.headers.authorization ?? "", "content-type": "application/json" };
+      const out = await handleGallery(new Request(url, { method: req.method, headers, body }), GALLERY);
+      res.writeHead(out.status, Object.fromEntries(out.headers));
+      return res.end(Buffer.from(await out.arrayBuffer()));
+    }
     if (req.method === "GET" && url.pathname === "/api/meta") {
       return send(res, 200, {
         dryRun: ENV_DRY_RUN,
@@ -162,22 +203,56 @@ const server = createServer(async (req, res) => {
       // Re-forge server-side from the seed so the prompt can't be tampered with.
       const character = forgeCharacter(body.roll ?? {});
       const dryRun = ENV_DRY_RUN || !!body.dryRun;
-      const job = startJob({ character, options: { ...DEFAULT_OPTIONS, ...(body.options ?? {}) }, dryRun });
+      // Already forging this exact model: follow that job instead of paying twice.
+      const running = [...jobs.values()].find((j) => j.status === "running" && j.dryRun === dryRun && j.character.prompt === character.prompt && j.character.seed === character.seed);
+      if (running) return send(res, 202, { jobId: running.id, dryRun, joined: true });
+      const job = startJob({ character, options: { ...DEFAULT_OPTIONS, ...(body.options ?? {}) }, dryRun, baseUrl: nftBaseUrl(req) });
       return send(res, 202, { jobId: job.id, dryRun });
     }
     if (req.method === "GET" && url.pathname.startsWith("/api/jobs/")) {
       const job = jobs.get(url.pathname.split("/").pop());
       return job ? send(res, 200, job) : send(res, 404, { error: "unknown job" });
     }
+    if (req.method === "GET" && url.pathname === "/api/balance") {
+      if (ENV_DRY_RUN) return send(res, 200, { dryRun: true });
+      return send(res, 200, await new TripoClient({ apiKey: process.env.TRIPO_API_KEY }).balance());
+    }
     if (req.method === "GET" && url.pathname === "/api/characters") {
       return send(res, 200, await listCharacters());
+    }
+    // Build-your-own NFT collection: supply, look uniqueness and local reservations (src/collection.js).
+    if (req.method === "GET" && url.pathname === "/api/nft/supply") {
+      return send(res, 200, await registry.supply());
+    }
+    if (req.method === "GET" && url.pathname === "/api/nft/tokens") {
+      return send(res, 200, await registry.tokens());
+    }
+    if (req.method === "POST" && url.pathname === "/api/nft/check") {
+      const body = await readBody(req);
+      return send(res, 200, await registry.check(forgeCharacter({ traits: body.traits, style: body.style })));
+    }
+    if (req.method === "POST" && url.pathname === "/api/nft/reserve") {
+      const body = await readBody(req);
+      return send(res, 201, await registry.reserve({ traits: body.traits, style: body.style }, nftBaseUrl(req), forgedGlb));
+    }
+    // The 3D forge of a creator build, if any: a real one first, else a dry run.
+    if (req.method === "POST" && url.pathname === "/api/nft/forged") {
+      const body = await readBody(req);
+      const character = forgeCharacter({ traits: body.traits, style: body.style });
+      return send(res, 200, (await findForge(character)) ?? (await findForge(character, { dryRun: true })));
+    }
+    if (req.method === "GET" && url.pathname.startsWith("/nft/")) {
+      return serveFile(res, NFT_DIR, decodeURIComponent(url.pathname.slice("/nft/".length)));
     }
     if (req.method === "GET" && url.pathname.startsWith("/output/")) {
       return serveFile(res, OUTPUT, decodeURIComponent(url.pathname.slice("/output/".length)));
     }
     // forge.js is dependency-free ESM, so the game reuses the same tables and RNG in the browser.
-    if (req.method === "GET" && url.pathname === "/lib/forge.js") {
-      return serveFile(res, path.join(ROOT, "src"), "forge.js");
+    if (req.method === "GET" && (url.pathname === "/lib/forge.js" || url.pathname === "/lib/portrait.js")) {
+      return serveFile(res, path.join(ROOT, "src"), url.pathname.slice("/lib/".length));
+    }
+    if (req.method === "GET" && url.pathname === "/creator") {
+      return serveFile(res, WEB, "creator.html");
     }
     if (req.method === "GET" && url.pathname === "/game") {
       return serveFile(res, WEB, "game.html");
@@ -187,6 +262,8 @@ const server = createServer(async (req, res) => {
     }
     send(res, 405, { error: "method not allowed" });
   } catch (err) {
+    if (err instanceof TraitError) return send(res, 400, { error: err.message, errors: err.errors });
+    if (err instanceof ReserveError) return send(res, 409, { error: err.message, takenBy: err.takenBy, soldOut: err.soldOut });
     send(res, 400, { error: err.message });
   }
 });
